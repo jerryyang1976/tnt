@@ -1,0 +1,3576 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A股股票信息管理</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #5c6bc0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            padding: 0 10px;
+            gap: 16px;
+        }
+
+        .header h1 {
+            color: white;
+            font-size: 1.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        /* 指数显示区域 */
+        .index-display {
+            display: flex;
+            gap: 30px;
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+        }
+
+        .index-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            background: #f8f9fa;
+            transition: all 0.2s;
+        }
+
+        .index-item:hover {
+            background: #e9ecef;
+        }
+
+        .index-item a {
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .index-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: #495057;
+        }
+
+        .index-current {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .index-current.profit {
+            color: #e74c3c;
+        }
+
+        .index-current.loss {
+            color: #27ae60;
+        }
+
+        .index-status {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .index-status.profit {
+            color: #e74c3c;
+        }
+
+        .index-status.loss {
+            color: #27ae60;
+        }
+
+        .index-points {
+            font-size: 14px;
+            font-weight: 500;
+            margin-left: 4px;
+        }
+
+        .index-points.profit {
+            color: #e74c3c;
+        }
+
+        .index-points.loss {
+            color: #27ae60;
+        }
+
+        .index-percent {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .index-percent.profit {
+            color: #e74c3c;
+        }
+
+        .index-percent.loss {
+            color: #27ae60;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        .btn-primary {
+            background: white;
+            color: #667eea;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.2);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .btn-danger {
+            background: #ff4757;
+            color: white;
+            padding: 6px 12px;
+            font-size: 13px;
+        }
+
+        .btn-danger:hover {
+            background: #ff3838;
+        }
+
+        .btn-edit {
+            background: #ffa502;
+            color: white;
+            padding: 6px 12px;
+            font-size: 13px;
+            margin-right: 6px;
+        }
+
+        .btn-edit:hover {
+            background: #e67e22;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        .card-title {
+            font-size: 1.2rem;
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .input-hint {
+            font-size: 12px;
+            color: #999;
+            margin-top: 4px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 25px;
+        }
+
+        .form-actions .btn {
+            padding: 12px 30px;
+        }
+
+        .stock-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        /* 表格横向滚动容器 */
+        .table-scroll-wrapper {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            position: relative;
+        }
+
+        /* 顶部滚动条容器 */
+        .top-scroll-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            overflow-y: hidden;
+            height: 20px;
+            margin-bottom: 2px;
+            background: transparent;
+        }
+
+        /* 顶部滚动条样式 */
+        .top-scroll-wrapper::-webkit-scrollbar {
+            height: 12px;
+        }
+
+        .top-scroll-wrapper::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 6px;
+        }
+
+        .top-scroll-wrapper::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 6px;
+            min-width: 40px;
+        }
+
+        /* 横向滚动条容器 */
+        .table-scroll-wrapper::-webkit-scrollbar {
+            height: 12px;
+            width: 12px;
+        }
+
+        .table-scroll-wrapper::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 6px;
+        }
+
+        .table-scroll-wrapper::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 6px;
+            min-width: 40px;
+        }
+
+        .stock-table th,
+        .stock-table td {
+            padding: 15px 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+            white-space: nowrap;
+        }
+
+        .stock-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+            min-width: 80px;
+        }
+
+        /* 股票名称列：固定在左侧不随横向滚动移动 */
+        .stock-table th:first-child,
+        .stock-table td:first-child {
+            position: sticky;
+            left: 0;
+            z-index: 2;
+            background: #f8f9fa;
+            min-width: 120px;
+            /* 右侧阴影提示可滚动 */
+            box-shadow: 2px 0 6px rgba(0,0,0,0.08);
+        }
+
+        .stock-table td:first-child {
+            background: #fff;
+        }
+
+        .stock-table tr:hover td:first-child {
+            background: #f8f9fa;
+        }
+
+        .stock-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        /* 搜索匹配行的箭头指示样式 */
+        .stock-table tr.search-matched .arrow-indicator {
+            display: inline-block;
+            color: #ff6b6b;
+            font-weight: bold;
+            margin-right: 8px;
+            font-size: 1.1em;
+            animation: pulse-arrow 0.8s ease-in-out infinite;
+        }
+
+        @keyframes pulse-arrow {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.6;
+                transform: scale(1.1);
+            }
+        }
+
+        .stock-table td {
+            font-size: 14px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 15px;
+        }
+
+        .empty-state h3 {
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .badge-sh {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .badge-sz {
+            background: #fce4ec;
+            color: #c2185b;
+        }
+
+        .badge-bj {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .connection-info {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #28a745;
+            font-size: 14px;
+        }
+
+        .connection-status::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: #28a745;
+            border-radius: 50%;
+        }
+        /* 涨跌幅和盈亏率颜色 */
+        .profit {
+            color: #e74c3c !important;
+        }
+        .loss {
+            color: #27ae60 !important;
+        }
+        .profit-rate,
+        .change-rate {
+            font-weight: 600 !important;
+        }
+        .profit-amount {
+            font-weight: 600 !important;
+            white-space: nowrap;
+        }
+        /* KDJ60样式 */
+        .kdj60-value {
+            font-weight: 600 !important;
+            font-size: 13px;
+        }
+        .kdj-overbought {
+            color: #e74c3c !important;  /* J>80 超买-红色 */
+        }
+        .kdj-oversold {
+            color: #27ae60 !important;  /* J<20 超卖-绿色 */
+        }
+        .kdj-neutral {
+            color: #e67e22 !important;  /* 20<=J<=80 中性-橙色 */
+        }
+        /* 成本价颜色 */
+        .cost-price {
+            color: #00008B !important;
+            font-weight: 600;
+        }
+        /* 目标价颜色 */
+        .target-price {
+            color: #888888 !important;
+            font-weight: 600;
+        }
+        /* 股票名称链接 */
+        .stock-name-link {
+            color: inherit;
+            text-decoration: none;
+        }
+        .stock-name-link:hover {
+            color: #3498db;
+            text-decoration: underline;
+        }
+        .stock-notes {
+            font-size: 12px;
+            color: #888;
+            margin-top: 4px;
+            font-weight: normal;
+        }
+        /* 可排序表头 */
+        .sortable {
+            cursor: pointer;
+            user-select: none;
+        }
+        .sortable:hover {
+            color: #3498db;
+        }
+        /* 全局搜索 */
+        .global-search {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .global-search input {
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px 0 0 4px;
+            font-size: 13px;
+            width: 150px;
+            transition: width 0.3s, border-color 0.3s;
+            border-right: none;
+        }
+        .global-search input:focus {
+            width: 190px;
+            border-color: #3498db;
+            outline: none;
+        }
+        .search-btn {
+            padding: 6px 10px;
+            border: 1px solid #3498db;
+            border-radius: 0 4px 4px 0;
+            background: #3498db;
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .search-btn:hover {
+            background: #2980b9;
+        }
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 300px;
+            max-height: 300px;
+            overflow-y: auto;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1000;
+            display: none;
+        }
+        .search-result-item {
+            padding: 10px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background 0.2s;
+        }
+        .search-result-item:hover {
+            background: #f5f5f5;
+        }
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+        .search-result-name {
+            font-weight: 500;
+            color: #333;
+        }
+        .search-result-code {
+            font-size: 12px;
+            color: #888;
+            margin-left: 8px;
+        }
+        .search-result-notes {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+        .search-highlight {
+            background: #fff3cd;
+            padding: 0 2px;
+            border-radius: 2px;
+        }
+        tr.search-matched {
+            background: #fff8e1;
+        }
+        tr.search-matched td:first-child {
+            border-left: 3px solid #ffc107;
+        }
+        /* More按钮样式 */
+        .btn-more {
+            background: #3498db;
+            color: white;
+            padding: 6px 12px;
+            font-size: 13px;
+        }
+
+        .btn-more:hover {
+            background: #2980b9;
+        }
+
+        /* 弹窗样式 */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 800px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .modal-title {
+            font-size: 1.4rem;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: #999;
+            transition: color 0.3s;
+        }
+
+        .modal-close:hover {
+            color: #333;
+        }
+
+        .modal-body {
+            margin-bottom: 20px;
+        }
+
+        .rich-text-editor {
+            width: 100%;
+            min-height: 300px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            font-size: 14px;
+            line-height: 1.6;
+            overflow-y: auto;
+        }
+
+        .rich-text-editor:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .toolbar-btn {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .toolbar-btn:hover {
+            background: #f5f5f5;
+            border-color: #999;
+        }
+
+        .color-picker {
+            display: flex;
+            gap: 5px;
+            margin-left: 10px;
+        }
+
+        .color-btn {
+            width: 24px;
+            height: 24px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .color-btn:hover {
+            border-color: #999;
+            transform: scale(1.1);
+        }
+
+        .color-btn.active {
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3);
+        }
+
+        .color-dark-red {
+            background-color: #8B0000;
+        }
+
+        .color-orange-red {
+            background-color: #FF4500;
+        }
+
+        .color-dark-purple {
+            background-color: #4B0082;
+        }
+
+        .color-dark-blue {
+            background-color: #00008B;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .modal-content-preview {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            min-height: 100px;
+            border: 1px solid #e0e0e0;
+        }
+
+        /* 回到顶部浮动按钮 */
+        .back-to-top {
+            display: none;
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s;
+            z-index: 999;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        .back-to-top:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+        }
+
+        .back-to-top.show {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .back-to-top:active {
+            transform: translateY(0);
+        }
+
+        /* 全局搜索样式 */
+        .global-search {
+            position: relative;
+            display: flex;
+            align-items: center;
+            background: rgba(255,255,255,0.15);
+            border-radius: 20px;
+            padding: 6px 12px;
+            transition: all 0.3s;
+        }
+
+        .global-search input {
+            background: transparent;
+            border: none;
+            color: white;
+            padding: 6px;
+            font-size: 14px;
+            width: 200px;
+        }
+
+        .global-search input::placeholder {
+            color: rgba(255,255,255,0.7);
+        }
+
+        .global-search input:focus {
+            outline: none;
+        }
+
+        .search-btn {
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 4px;
+        }
+
+        .search-results {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            margin-top: 8px;
+            max-height: 400px;
+            overflow-y: auto;
+            z-index: 1000;
+        }
+
+        .search-result-item {
+            padding: 10px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background 0.2s;
+        }
+
+        .search-result-item:hover {
+            background: #f5f5f5;
+        }
+
+        .search-result-name {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .search-result-code {
+            color: #666;
+            margin-left: 10px;
+        }
+
+        .search-result-notes {
+            font-size: 12px;
+            color: #999;
+            margin-top: 4px;
+        }
+
+        /* 搜索匹配的高亮样式 */
+        .search-matched {
+            background-color: #fff3cd !important;
+            box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.3) !important;
+            animation: search-highlight 15s ease-in-out;
+        }
+
+        @keyframes search-highlight {
+            0%, 100% {
+                background-color: #fff3cd;
+                box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.3);
+            }
+            50% {
+                background-color: #ffe08a;
+                box-shadow: 0 0 0 6px rgba(255, 193, 7, 0.5);
+            }
+        }
+
+        /* 实时订阅开关样式 */
+        .realtime-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 20px;
+            color: white;
+            font-size: 13px;
+            cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.3);
+            transition: all 0.3s;
+        }
+
+        .realtime-toggle:hover {
+            background: rgba(255,255,255,0.25);
+        }
+
+        .realtime-toggle.active {
+            background: rgba(46, 204, 113, 0.3);
+            border-color: #2ecc71;
+        }
+
+        .realtime-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #888;
+            transition: all 0.3s;
+        }
+
+        .realtime-toggle.active .realtime-indicator {
+            background: #2ecc71;
+            box-shadow: 0 0 6px #2ecc71;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.4); }
+            70% { box-shadow: 0 0 0 8px rgba(46, 204, 113, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📈 A股股票信息管理</h1>
+            <div class="header-actions">
+                <a href="stockck1.0.html" class="btn" style="background:#0e7490;color:white;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">📋 股票池</a>
+                <a href="stockfx-v2.html" class="btn" style="background:#667eea;color:white;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">📊 股票分析</a>
+                <a href="stockcle.html" class="btn" style="background:#f59e0b;color:white;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">🗑️ 清仓股票</a>
+                <div class="global-search">
+                    <input type="text" id="globalSearch" placeholder="搜索股票名称/代码/备注...">
+                    <button type="button" class="search-btn" onclick="doSearch()">🔍</button>
+                    <div class="search-results" id="searchResults"></div>
+                </div>
+                <button class="realtime-toggle" id="realtimeToggle" onclick="toggleRealtime()">
+                    <span class="realtime-indicator"></span>
+                    <span id="realtimeLabel">实时订阅</span>
+                </button>
+                <button class="btn" style="background:#3b82f6;color:white;" onclick="exportStockData()" title="导出当前股票数据为 JSON 文件">📥 导出数据</button>
+                <label class="btn" style="background:#22c55e;color:white;cursor:pointer;" title="从 JSON 文件导入股票数据">
+                    📤 导入数据
+                    <input type="file" accept=".json" style="display:none;" onchange="importStockData(this.files[0])">
+                </label>
+                <button class="btn" style="background:linear-gradient(135deg,#6366f1,#a855f7);color:white;" onclick="analyzeWithAI()" title="将持仓数据整理为提示词并打开 AI 分析">🤖 AI分析</button>
+                <button class="btn btn-secondary" onclick="logout()">切换账号</button>
+                <button class="btn btn-primary" onclick="showAddForm()">+ 添加股票</button>
+            </div>
+        </div>
+
+        <div id="alertContainer"></div>
+
+        <!-- 连接信息 -->
+        <div class="connection-info">
+            <div>
+                <span style="color: #666; font-size: 14px;">当前连接：</span>
+                <span id="projectUrl" style="color: #333; font-size: 14px; font-weight: 500;"></span>
+            </div>
+            <div class="connection-status">已连接</div>
+        </div>
+
+        <!-- 指数显示区域 -->
+        <div class="index-display">
+            <a href="https://quote.eastmoney.com/sh000001.html" target="_blank" class="index-item" id="shIndex">
+                <span class="index-name">上证指数</span>
+                <span class="index-current">-</span>
+                <span class="index-status">-</span>
+                <span class="index-points">-</span>
+                <span class="index-percent">-</span>
+            </a>
+            <a href="https://quote.eastmoney.com/sz399006.html" target="_blank" class="index-item" id="cybIndex">
+                <span class="index-name">创业板指</span>
+                <span class="index-current">-</span>
+                <span class="index-status">-</span>
+                <span class="index-points">-</span>
+                <span class="index-percent">-</span>
+            </a>
+        </div>
+
+
+
+
+        <!-- 添加/编辑表单 -->
+        <div class="card" id="formCard" style="display: none;">
+            <h2 class="card-title" id="formTitle">添加股票</h2>
+            <form id="stockForm" onsubmit="saveStock(event)">
+                <input type="hidden" id="stockId">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="stockName">股票名称 *</label>
+                        <input type="text" id="stockName" placeholder="请输入股票名称，回车或失焦查询" required autocomplete="off">
+                        <div class="input-hint" id="stockHint">输入名称后回车或失焦自动查询代码</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="stockCode">股票代码 *</label>
+                        <input type="text" id="stockCode" placeholder="请输入股票代码" required maxlength="6" autocomplete="off">
+                        <div class="input-hint">输入6位代码后自动查询名称</div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="stockCost">成本价（元）</label>
+                        <input type="number" id="stockCost" placeholder="请输入成本价" step="0.01" min="0" autocomplete="off">
+                        <div class="input-hint">输入您的买入成本价</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="stockQuantity">持仓数量（股）</label>
+                        <input type="number" id="stockQuantity" placeholder="默认100股" value="100" min="1" autocomplete="off">
+                        <div class="input-hint">默认100股</div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="stockNotes">笔记备注</label>
+                    <input type="text" id="stockNotes" placeholder="添加备注信息，如买入理由、目标价位等" autocomplete="off">
+                    <div class="input-hint">可选填写</div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary" id="submitBtn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">保存</button>
+                    <button type="button" class="btn btn-secondary" onclick="hideForm()" style="background: #747d8c;">取消</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- 股票列表 -->
+        <div class="card">
+            <h2 class="card-title">股票列表</h2>
+            <div id="stockList">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📊</div>
+                    <h3>暂无股票数据</h3>
+                    <p>点击右上角"添加股票"按钮开始录入</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- More信息弹窗 -->
+        <div class="modal-overlay" id="moreModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title" id="moreModalTitle">股票详情</h3>
+                    <button class="modal-close" onclick="closeMoreModal()">×</button>
+                </div>
+                <div class="modal-body">
+                    <label style="margin-bottom: 10px;">编辑详情信息：</label>
+                    <div class="toolbar">
+                        <button class="toolbar-btn" onclick="formatText('bold')"><b>粗体</b></button>
+                        <button class="toolbar-btn" onclick="formatText('italic')"><i>斜体</i></button>
+                        <button class="toolbar-btn" onclick="formatText('underline')"><u>下划线</u></button>
+                        <button class="toolbar-btn" onclick="formatText('insertUnorderedList')">• 列表</button>
+                        <button class="toolbar-btn" onclick="formatText('insertOrderedList')">1. 列表</button>
+                        <div class="color-picker">
+                            <button class="color-btn color-dark-red" onclick="setForeColor('#8B0000')" title="深红"></button>
+                            <button class="color-btn color-orange-red" onclick="setForeColor('#FF4500')" title="橘红"></button>
+                            <button class="color-btn color-dark-purple" onclick="setForeColor('#4B0082')" title="深紫"></button>
+                            <button class="color-btn color-dark-blue" onclick="setForeColor('#00008B')" title="深蓝"></button>
+                        </div>
+                    </div>
+                    <div class="rich-text-editor" id="moreContentEditor" contenteditable="true"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeMoreModal()" style="background: #747d8c;">取消</button>
+                    <button class="btn btn-primary" onclick="saveMoreContent()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">保存</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 回到顶部按钮 -->
+        <button class="back-to-top" id="backToTop" onclick="scrollToTop()" title="回到顶部">↑</button>
+    </div>
+
+    <script>
+        let supabaseUrl = null;
+        let supabaseKey = null;
+        let supabaseClient = null; // SDK client, loaded on demand
+        let isEditing = false;
+        let aStockData = []; // 股票数据将从东方财富API获取
+        let realtimeChannel = null; // 实时订阅频道
+
+        /* ── Supabase SDK 动态加载器（按需加载，不阻塞首屏） ── */
+        async function getSupabaseClient() {
+            if (supabaseClient) return supabaseClient;
+
+            try {
+                // 动态导入 SDK（从 CDN）
+                const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/+esm');
+                supabaseClient = createClient(supabaseUrl, supabaseKey);
+                console.log('Supabase SDK loaded successfully');
+                return supabaseClient;
+            } catch (error) {
+                console.error('Failed to load Supabase SDK:', error);
+                throw new Error('SDK 加载失败，请检查网络连接');
+            }
+        }
+
+        /* ── 实时订阅功能（使用 SDK） ── */
+        async function enableRealtimeSubscription() {
+            try {
+                const client = await getSupabaseClient();
+
+                // 如果已有订阅，先移除
+                if (realtimeChannel) {
+                    client.removeChannel(realtimeChannel);
+                }
+
+                // 创建实时订阅频道
+                realtimeChannel = client.channel('stocks-changes')
+                    .on('postgres_changes',
+                        { event: '*', schema: 'public', table: 'stocks' },
+                        (payload) => {
+                            console.log('实时数据变更:', payload);
+                            // 根据事件类型处理
+                            if (payload.eventType === 'INSERT') {
+                                // 新增：添加到列表顶部
+                                window.cachedStocks = [payload.new, ...(window.cachedStocks || [])];
+                            } else if (payload.eventType === 'UPDATE') {
+                                // 更新：替换对应记录
+                                if (window.cachedStocks) {
+                                    window.cachedStocks = window.cachedStocks.map(s =>
+                                        s.id === payload.new.id ? payload.new : s
+                                    );
+                                }
+                            } else if (payload.eventType === 'DELETE') {
+                                // 删除：移除对应记录
+                                if (window.cachedStocks) {
+                                    window.cachedStocks = window.cachedStocks.filter(s =>
+                                        s.id !== payload.old.id
+                                    );
+                                }
+                            }
+                            // 重新渲染表格
+                            if (window.cachedStocks) {
+                                renderStockTable(window.cachedStocks);
+                            }
+                        }
+                    )
+                    .subscribe((status) => {
+                        console.log('实时订阅状态:', status);
+                        if (status === 'SUBSCRIBED') {
+                            showAlert('实时订阅已开启', 'success');
+                        } else if (status === 'CHANNEL_ERROR') {
+                            showAlert('实时订阅连接失败', 'error');
+                        }
+                    });
+
+                console.log('Real-time subscription enabled');
+                return realtimeChannel;
+            } catch (error) {
+                console.error('Failed to enable realtime subscription:', error);
+                showAlert('开启实时订阅失败: ' + error.message, 'error');
+                return null;
+            }
+        }
+
+        function disableRealtimeSubscription() {
+            if (realtimeChannel && supabaseClient) {
+                supabaseClient.removeChannel(realtimeChannel);
+                realtimeChannel = null;
+                console.log('Real-time subscription disabled');
+            }
+        }
+
+        /* ── 文件上传功能（使用 SDK Storage） ── */
+        async function uploadFile(file, bucketName = 'stock-files', folderName = 'uploads') {
+            try {
+                const client = await getSupabaseClient();
+
+                if (!file) {
+                    throw new Error('请选择要上传的文件');
+                }
+
+                // 生成唯一文件名
+                const timestamp = Date.now();
+                const randomStr = Math.random().toString(36).substring(2, 8);
+                const fileExt = file.name.split('.').pop();
+                const fileName = `${folderName}/${timestamp}_${randomStr}.${fileExt}`;
+
+                // 使用 SDK 上传文件
+                const { data, error } = await client.storage
+                    .from(bucketName)
+                    .upload(fileName, file, {
+                        cacheControl: '3600',
+                        upsert: false
+                    });
+
+                if (error) {
+                    throw error;
+                }
+
+                // 获取公开访问 URL
+                const { data: urlData } = client.storage
+                    .from(bucketName)
+                    .getPublicUrl(data.path);
+
+                console.log('File uploaded:', urlData.publicUrl);
+                return {
+                    success: true,
+                    path: data.path,
+                    url: urlData.publicUrl
+                };
+            } catch (error) {
+                console.error('File upload failed:', error);
+                throw new Error('文件上传失败: ' + error.message);
+            }
+        }
+
+        async function deleteFile(filePath, bucketName = 'stock-files') {
+            try {
+                const client = await getSupabaseClient();
+
+                const { error } = await client.storage
+                    .from(bucketName)
+                    .remove([filePath]);
+
+                if (error) {
+                    throw error;
+                }
+
+                console.log('File deleted:', filePath);
+                return { success: true };
+            } catch (error) {
+                console.error('File delete failed:', error);
+                throw new Error('文件删除失败: ' + error.message);
+            }
+        }
+
+        // 带超时的 fetch 请求
+        async function supabaseFetch(endpoint, options = {}, timeoutMs = 15000) {
+            const url = supabaseUrl + '/rest/v1/' + endpoint;
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+            try {
+                const response = await fetch(url, {
+                    ...options,
+                    headers: {
+                        'apikey': supabaseKey,
+                        'Authorization': 'Bearer ' + supabaseKey,
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    },
+                    signal: controller.signal
+                });
+                clearTimeout(timeout);
+                return response;
+            } catch (error) {
+                clearTimeout(timeout);
+                if (error.name === 'AbortError') {
+                    throw new Error('请求超时');
+                }
+                throw error;
+            }
+        }
+
+        // 预定义A股股票代码列表（6000+只）
+        const stockCodeList = [
+            // 沪市主板
+            '600000','600001','600002','600004','600006','600007','600008','600009','600010','600011',
+            '600012','600015','600016','600017','600018','600019','600020','600021','600022','600023',
+            '600025','600026','600027','600028','600029','600030','600031','600032','600033','600034',
+            '600035','600036','600037','600038','600039','600040','600041','600042','600043','600044',
+            '600045','600046','600047','600048','600049','600050','600051','600052','600053','600054',
+            '600055','600056','600057','600058','600059','600060','600061','600062','600063','600064',
+            '600065','600066','600067','600068','600069','600070','600071','600072','600073','600074',
+            '600075','600076','600077','600078','600079','600080','600081','600082','600083','600084',
+            '600085','600086','600087','600088','600089','600090','600091','600092','600093','600094',
+            '600095','600096','600097','600098','600099','600100','600101','600102','600103','600104',
+            '600105','600106','600107','600108','600109','600110','600111','600112','600113','600114',
+            '600115','600116','600117','600118','600119','600120','600121','600122','600123','600124',
+            '600125','600126','600127','600128','600129','600130','600131','600132','600133','600135',
+            '600136','600137','600138','600139','600140','600141','600142','600143','600144','600145',
+            '600146','600147','600148','600149','600150','600151','600152','600153','600154','600155',
+            '600156','600157','600158','600159','600160','600161','600162','600163','600164','600165',
+            '600166','600167','600168','600169','600170','600171','600172','600173','600174','600175',
+            '600176','600177','600178','600179','600180','600181','600182','600183','600184','600185',
+            '600186','600187','600188','600189','600190','600191','600192','600193','600194','600195',
+            '600196','600197','600198','600199','600200','600201','600202','600203','600204','600205',
+            '600206','600207','600208','600209','600210','600211','600212','600213','600214','600215',
+            '600216','600217','600218','600219','600220','600221','600222','600223','600225','600226',
+            '600227','600228','600229','600230','600231','600232','600233','600234','600235','600236',
+            '600237','600238','600239','600240','600241','600242','600243','600244','600245','600246',
+            '600247','600248','600249','600250','600251','600252','600253','600254','600255','600256',
+            '600257','600258','600259','600260','600261','600262','600263','600265','600266','600267',
+            '600268','600269','600270','600271','600272','600273','600274','600275','600276','600277',
+            '600278','600279','600280','600281','600282','600283','600284','600285','600286','600287',
+            '600288','600289','600290','600291','600292','600293','600294','600295','600296','600297',
+            '600298','600299','600300','600301','600302','600303','600304','600305','600306','600307',
+            '600308','600309','600310','600311','600312','600313','600315','600316','600317','600318',
+            '600319','600320','600321','600322','600323','600325','600326','600327','600328','600329',
+            '600330','600331','600332','600333','600334','600335','600336','600337','600338','600339',
+            '600340','600341','600342','600343','600345','600346','600347','600348','600349','600350',
+            '600351','600352','600353','600354','600355','600356','600357','600358','600359','600360',
+            '600361','600362','600363','600365','600366','600367','600368','600369','600370','600371',
+            '600372','600373','600375','600376','600377','600378','600379','600380','600381','600382',
+            '600383','600385','600386','600387','600388','600389','600390','600391','600392','600393',
+            '600394','600395','600396','600397','600398','600399','600400','600401','600402','600403',
+            '600404','600405','600406','600407','600408','600409','600410','600411','600412','600413',
+            '600415','600416','600417','600418','600419','600420','600422','600423','600425','600426',
+            '600428','600429','600432','600433','600435','600436','600437','600438','600439','600440',
+            '600441','600442','600443','600444','600445','600446','600447','600448','600449','600450',
+            '600455','600456','600457','600458','600459','600460','600461','600462','600463','600465',
+            '600466','600467','600468','600469','600470','600471','600472','600473','600475','600476',
+            '600477','600478','600479','600480','600481','600482','600483','600485','600487','600488',
+            '600489','600490','600491','600492','600493','600495','600497','600498','600499','600500',
+            '600501','600502','600503','600504','600505','600506','600507','600508','600509','600510',
+            '600511','600512','600513','600515','600516','600517','600518','600519','600520','600521',
+            '600522','600523','600525','600526','600527','600528','600529','600530','600531','600532',
+            '600533','600535','600536','600537','600538','600539','600540','600542','600543','600545',
+            '600546','600547','600548','600549','600550','600551','600552','600553','600554','600555',
+            '600556','600557','600558','600559','600560','600561','600562','600563','600564','600565',
+            '600566','600567','600568','600569','600570','600571','600572','600573','600575','600576',
+            '600577','600578','600579','600580','600581','600582','600583','600584','600585','600586',
+            '600587','600588','600589','600590','600591','600592','600593','600594','600595','600596',
+            '600597','600598','600599','600600','600601','600602','600603','600604','600605','600606',
+            '600607','600608','600609','600610','600611','600612','600613','600614','600615','600616',
+            '600617','600618','600619','600620','600621','600622','600623','600624','600625','600626',
+            '600627','600628','600629','600630','600631','600632','600633','600634','600635','600636',
+            '600637','600638','600639','600640','600641','600642','600643','600644','600645','600647',
+            '600648','600649','600650','600651','600652','600653','600654','600655','600656','600657',
+            '600658','600659','600660','600661','600662','600663','600664','600665','600666','600667',
+            '600668','600669','600670','600671','600672','600673','600674','600675','600676','600677',
+            '600678','600679','600680','600681','600682','600683','600684','600685','600686','600687',
+            '600688','600689','600690','600691','600692','600693','600694','600695','600696','600697',
+            '600698','600699','600700','600701','600702','600703','600704','600705','600706','600707',
+            '600708','600709','600710','600711','600712','600713','600714','600715','600716','600717',
+            '600718','600719','600720','600721','600722','600723','600724','600725','600726','600727',
+            '600728','600729','600730','600731','600732','600733','600734','600735','600736','600737',
+            '600738','600739','600740','600741','600742','600743','600744','600745','600746','600747',
+            '600748','600749','600750','600751','600752','600753','600754','600755','600756','600757',
+            '600758','600759','600760','600761','600762','600763','600764','600765','600766','600767',
+            '600768','600769','600770','600771','600772','600773','600774','600775','600776','600777',
+            '600778','600779','600780','600781','600782','600783','600784','600785','600786','600787',
+            '600788','600789','600790','600791','600792','600793','600794','600795','600796','600797',
+            '600798','600799','600800','600801','600802','600803','600804','600805','600806','600807',
+            '600808','600809','600810','600811','600812','600813','600814','600815','600816','600817',
+            '600818','600819','600820','600821','600822','600823','600824','600825','600826','600827',
+            '600828','600829','600830','600831','600832','600833','600834','600835','600836','600837',
+            '600838','600839','600840','600841','600842','600843','600844','600845','600846','600847',
+            '600848','600849','600850','600851','600852','600853','600854','600855','600856','600857',
+            '600858','600859','600860','600861','600862','600863','600864','600865','600866','600867',
+            '600868','600869','600870','600871','600872','600873','600874','600875','600876','600877',
+            '600878','600879','600880','600881','600882','600883','600884','600885','600886','600887',
+            '600888','600889','600890','600891','600892','600893','600894','600895','600896','600897',
+            '600898','600899','600900','600901','600902','600903','600904','600905','600906','600907',
+            '600908','600909','600910','600911','600912','600913','600914','600915','600916','600917',
+            '600918','600919','600920','600921','600922','600923','600924','600925','600926','600927',
+            '600928','600929','600930','600931','600932','600933','600934','600935','600936','600937',
+            '600938','600939','600940','600941','600942','600943','600944','600945','600946','600947',
+            '600948','600949','600950','600951','600952','600953','600954','600955','600956','600957',
+            '600958','600959','600960','600961','600962','600963','600964','600965','600966','600967',
+            '600968','600969','600970','600971','600972','600973','600974','600975','600976','600977',
+            '600978','600979','600980','600981','600982','600983','600984','600985','600986','600987',
+            '600988','600989','600990','600991','600992','600993','600994','600995','600996','600997',
+            '600998','600999','601001','601002','601003','601005','601006','601007','601008','601009',
+            '601010','601011','601012','601013','601015','601016','601017','601018','601019','601020',
+            '601021','601022','601023','601025','601028','601066','601068','601069','601088','601089',
+            '601099','601106','601108','601111','601113','601116','601117','601118','601126','601127',
+            '601128','601138','601139','601155','601156','601157','601158','601166','601168','601169',
+            '601177','601178','601179','601186','601198','601199','601211','601212','601216','601218',
+            '601225','601228','601229','601231','601236','601238','601288','601298','601318','601319',
+            '601328','601333','601336','601390','601398','601555','601558','601566','601588','601601',
+            '601607','601618','601628','601633','601668','601669','601678','601688','601698','601699',
+            '601718','601766','601788','601800','601816','601818','601857','601866','601872','601877',
+            '601878','601888','601898','601899','601901','601919','601939','601985','601988','601989',
+            '601996','601998','603000','603001','603002','603003','603005','603006','603007','603008',
+            '603009','603010','603011','603012','603013','603015','603016','603017','603018','603019',
+            '603020','603021','603022','603023','603025','603026','603027','603028','603029','603030',
+            '603031','603032','603033','603035','603036','603037','603038','603039','603040','603041',
+            '603042','603043','603044','603045','603046','603048','603049','603050','603051','603052',
+            '603053','603055','603056','603057','603058','603059','603060','603061','603062','603063',
+            '603066','603067','603068','603069','603070','603071','603072','603073','603076','603077',
+            '603078','603079','603080','603081','603082','603083','603085','603086','603087','603088',
+            '603089','603090','603091','603093','603096','603097','603099','603100','603101','603102',
+            '603103','603105','603106','603107','603108','603109','603111','603112','603113','603115',
+            '603117','603118','603119','603122','603123','603125','603127','603128','603129','603130',
+            '603131','603132','603133','603138','603139','603155','603156','603157','603158','603159',
+            '603160','603161','603162','603163','603165','603166','603167','603168','603169','603170',
+            '603171','603172','603173','603177','603178','603179','603180','603181','603183','603185',
+            '603186','603187','603188','603189','603190','603191','603192','603193','603195','603196',
+            '603197','603198','603199','603200','603201','603202','603203','603208','603209','603212',
+            '603213','603214','603215','603217','603218','603219','603220','603221','603222','603223',
+            '603225','603226','603227','603228','603229','603232','603233','603235','603236','603237',
+            '603238','603239','603259','603260','603261','603262','603263','603265','603266','603267',
+            '603268','603269','603270','603277','603278','603279','603280','603283','603285','603286',
+            '603288','603289','603290','603291','603297','603298','603299','603300','603301','603303',
+            '603305','603306','603307','603308','603309','603311','603312','603313','603315','603316',
+            '603317','603318','603319','603322','603323','603325','603327','603328','603329','603330',
+            '603331','603333','603338','603339','603345','603348','603349','603353','603355','603356',
+            '603357','603358','603359','603360','603365','603366','603367','603368','603369','603377',
+            '603378','603379','603380','603381','603383','603385','603386','603387','603388','603389',
+            '603390','603391','603392','603393','603396','603398','603399','603400','603406','603408',
+            '603409','603416','603417','603418','603419','603421','603422','603428','603429','603433',
+            '603444','603458','603466','603468','603469','603477','603478','603485','603486','603487',
+            '603488','603489','603496','603499','603500','603501','603505','603506','603507','603508',
+            '603511','603512','603513','603515','603516','603517','603518','603519','603520','603527',
+            '603528','603529','603530','603533','603535','603536','603537','603538','603551','603553',
+            '603555','603556','603557','603558','603559','603560','603561','603562','603563','603565',
+            '603566','603567','603568','603569','603570','603577','603578','603579','603580','603583',
+            '603585','603586','603587','603588','603589','603590','603593','603595','603596','603597',
+            '603598','603599','603600','603601','603602','603603','603605','603606','603607','603608',
+            '603609','603610','603611','603612','603613','603615','603616','603617','603618','603619',
+            '603626','603628','603629','603630','603631','603633','603636','603637','603638','603639',
+            '603650','603651','603652','603653','603654','603655','603656','603657','603658','603659',
+            '603660','603661','603662','603663','603664','603665','603666','603667','603668','603669',
+            '603670','603671','603672','603673','603675','603676','603677','603678','603679','603680',
+            '603681','603682','603683','603685','603686','603687','603688','603689','603690','603691',
+            '603693','603696','603697','603698','603699','603700','603701','603702','603703','603706',
+            '603707','603708','603709','603711','603712','603713','603716','603717','603718','603719',
+            '603721','603722','603723','603726','603727','603728','603729','603730','603732','603733',
+            '603736','603737','603738','603739','603750','603751','603755','603756','603757','603758',
+            '603759','603760','603761','603762','603763','603766','603767','603768','603769','603771',
+            '603773','603775','603776','603777','603778','603779','603780','603787','603788','603789',
+            '603790','603791','603793','603795','603796','603797','603799','603800','603801','603802',
+            '603803','603805','603806','603807','603808','603809','603810','603811','603812','603813',
+            '603815','603816','603817','603818','603819','603820','603821','603822','603823','603825',
+            '603826','603828','603829','603833','603838','603839','603856','603858','603859','603860',
+            '603861','603862','603863','603866','603867','603868','603869','603877','603878','603879',
+            '603880','603881','603882','603883','603885','603886','603887','603888','603889','603890',
+            '603891','603893','603896','603897','603898','603899','603900','603901','603903','603905',
+            '603906','603907','603908','603909','603912','603913','603915','603916','603917','603918',
+            '603919','603920','603921','603922','603923','603925','603928','603929','603930','603931',
+            '603933','603936','603937','603938','603939','603940','603941','603944','603945','603946',
+            '603948','603949','603950','603951','603952','603955','603956','603957','603958','603959',
+            '603960','603961','603962','603963','603966','603967','603968','603969','603970','603971',
+            '603972','603973','603977','603978','603979','603980','603981','603982','603983','603985',
+            '603986','603987','603988','603989','603990','603991','603992','603993','603995','603996',
+            '603997','603998','603999','688001','688002','688003','688005','688006','688007','688008',
+            '688009','688010','688011','688012','688013','688015','688016','688017','688018','688019',
+            '688020','688021','688022','688023','688025','688026','688027','688028','688029','688030',
+            '688031','688032','688033','688035','688036','688037','688038','688039','688040','688041',
+            '688042','688043','688045','688046','688047','688048','688049','688050','688055','688056',
+            '688057','688058','688059','688060','688061','688062','688063','688065','688066','688067',
+            '688068','688069','688070','688071','688072','688077','688078','688079','688080','688081',
+            '688082','688083','688085','688086','688087','688088','688089','688090','688091','688092',
+            '688093','688095','688096','688098','688099','688100','688101','688102','688103','688105',
+            '688106','688107','688108','688109','688110','688111','688112','688113','688115','688116',
+            '688117','688118','688119','688120','688121','688122','688123','688125','688126','688127',
+            '688128','688129','688130','688131','688132','688133','688135','688136','688137','688138',
+            '688139','688140','688141','688148','688149','688150','688151','688155','688156','688157',
+            '688158','688159','688160','688161','688162','688163','688165','688166','688167','688168',
+            '688169','688170','688171','688172','688175','688176','688177','688178','688179','688180',
+            '688181','688182','688183','688185','688186','688187','688188','688189','688190','688191',
+            '688193','688195','688196','688197','688198','688199','688200','688202','688203','688205',
+            '688206','688207','688208','688209','688210','688211','688212','688213','688215','688216',
+            '688217','688218','688219','688220','688221','688222','688223','688225','688226','688227',
+            '688228','688229','688230','688231','688232','688233','688235','688236','688237','688238',
+            '688239','688250','688255','688256','688258','688259','688260','688261','688262','688265',
+            '688266','688267','688268','688269','688270','688275','688276','688277','688278','688279',
+            '688280','688285','688286','688288','688289','688290','688291','688295','688296','688298',
+            '688300','688301','688302','688303','688305','688306','688307','688308','688309','688310',
+            '688311','688312','688315','688316','688317','688318','688319','688320','688321','688322',
+            '688323','688325','688326','688327','688328','688329','688330','688331','688333','688335',
+            '688336','688337','688338','688339','688345','688346','688348','688350','688351','688355',
+            '688356','688357','688358','688359','688360','688361','688363','688365','688366','688368',
+            '688369','688370','688377','688378','688379','688380','688381','688383','688385','688386',
+            '688387','688388','688389','688390','688391','688393','688395','688396','688397','688398',
+            '688399','688400','688401','688403','688405','688406','688408','688409','688410','688411',
+            '688415','688416','688418','688419','688420','688421','688422','688425','688426','688428',
+            '688429','688430','688432','688433','688435','688436','688438','688439','688440','688441',
+            '688445','688446','688448','688449','688450','688455','688456','688458','688459','688466',
+            '688468','688469','688477','688478','688479','688480','688485','688486','688487','688488',
+            '688489','688498','688499','688500','688501','688502','688505','688506','688508','688509',
+            '688510','688511','688512','688515','688516','688517','688518','688519','688520','688521',
+            '688525','688526','688527','688528','688529','688530','688531','688535','688536','688538',
+            '688539','688550','688551','688552','688555','688556','688557','688558','688559','688560',
+            '688561','688565','688566','688567','688568','688569','688570','688571','688575','688576',
+            '688577','688578','688579','688580','688581','688585','688586','688587','688588','688589',
+            '688590','688591','688595','688596','688597','688598','688599','688600','688601','688605',
+            '688606','688607','688608','688609','688610','688611','688615','688616','688617','688618',
+            '688619','688620','688621','688625','688626','688627','688628','688629','688630','688631',
+            '688636','688637','688638','688639','688650','688651','688655','688656','688657','688658',
+            '688659','688660','688661','688665','688666','688667','688668','688669','688670','688671',
+            '688676','688677','688678','688679','688680','688681','688685','688686','688687','688688',
+            '688689','688690','688691','688696','688697','688698','688699','688700','688701','688702',
+            '688705','688706','688707','688708','688709','688710','688711','688716','688717','688718',
+            '688719','688720','688721','688726','688727','688728','688729','688730','688731','688735',
+            '688736','688737','688738','688739','688750','688751','688755','688756','688757','688758',
+            '688759','688766','688767','688768','688769','688770','688771','688777','688778','688779',
+            '688780','688785','688786','688787','688788','688789','688790','688791','688795','688796',
+            '688797','688798','688799','688800','688801','688808','688809','688810','688811','688815',
+            '688816','688817','688818','688819','688820','688821','688828','688829','688830','688831',
+            '688838','688839','688850','688851','688855','688856','688857','688858','688859','688866',
+            '688867','688868','688869','688877','688878','688879','688880','688881','688885','688886',
+            '688887','688888','688889','688890','688891','688897','688898','688899','688900','688901',
+            '688908','688909','688918','688919','688928','688929','688936','688939','688948','688949',
+            '688958','688959','688966','688967','688968','688969','688977','688978','688979','688980',
+            '688981','688985','688986','688987','688988','688989','688996','688997','688998','688999',
+            // 深市主板
+            '000001','000002','000004','000005','000006','000007','000008','000009','000010','000011',
+            '000012','000014','000016','000017','000018','000019','000020','000021','000022','000023',
+            '000025','000026','000027','000028','000029','000030','000031','000032','000033','000034',
+            '000035','000036','000037','000038','000039','000040','000042','000043','000045','000046',
+            '000048','000049','000050','000055','000056','000058','000059','000060','000061','000062',
+            '000063','000065','000066','000068','000069','000070','000078','000088','000089','000090',
+            '000096','000099','000150','000151','000152','000153','000155','000156','000157','000158',
+            '000159','000166','000301','000333','000338','000400','000401','000402','000403','000404',
+            '000409','000410','000411','000415','000416','000417','000418','000419','000420','000421',
+            '000422','000423','000425','000426','000428','000429','000430','000488','000498','000501',
+            '000502','000503','000504','000505','000506','000507','000509','000510','000511','000513',
+            '000514','000515','000516','000517','000518','000519','000521','000522','000523','000525',
+            '000526','000527','000528','000529','000530','000531','000532','000533','000534','000535',
+            '000536','000537','000538','000539','000540','000541','000543','000544','000545','000546',
+            '000547','000548','000549','000550','000551','000552','000553','000554','000555','000556',
+            '000557','000558','000559','000560','000561','000563','000565','000566','000567','000568',
+            '000569','000570','000571','000572','000573','000576','000581','000582','000583','000584',
+            '000585','000586','000587','000589','000590','000591','000592','000593','000595','000596',
+            '000597','000598','000599','000600','000601','000602','000603','000605','000606','000607',
+            '000608','000609','000610','000611','000612','000613','000615','000616','000617','000618',
+            '000619','000620','000621','000622','000623','000625','000626','000627','000628','000629',
+            '000630','000631','000632','000633','000635','000636','000637','000638','000639','000650',
+            '000651','000652','000655','000656','000657','000658','000659','000661','000662','000663',
+            '000665','000666','000667','000668','000669','000670','000671','000672','000673','000675',
+            '000676','000677','000678','000679','000680','000681','000682','000683','000685','000686',
+            '000687','000688','000689','000690','000691','000692','000693','000695','000697','000698',
+            '000700','000701','000702','000703','000708','000709','000710','000712','000713','000715',
+            '000716','000717','000718','000719','000720','000721','000722','000723','000725','000726',
+            '000727','000728','000729','000730','000731','000732','000733','000735','000736','000738',
+            '000739','000751','000752','000753','000755','000756','000758','000759','000760','000761',
+            '000762','000765','000766','000767','000768','000769','000770','000771','000776','000777',
+            '000778','000779','000780','000782','000783','000785','000786','000788','000789','000790',
+            '000791','000792','000793','000795','000796','000797','000798','000799','000800','000801',
+            '000802','000803','000806','000807','000809','000810','000811','000812','000813','000815',
+            '000816','000817','000818','000819','000820','000821','000822','000823','000825','000826',
+            '000827','000828','000829','000830','000831','000833','000835','000836','000837','000838',
+            '000839','000848','000849','000850','000851','000852','000856','000857','000858','000859',
+            '000860','000861','000862','000863','000868','000869','000875','000876','000877','000878',
+            '000879','000880','000881','000882','000883','000885','000886','000887','000888','000889',
+            '000890','000892','000893','000895','000896','000897','000898','000899','000900','000901',
+            '000902','000903','000905','000906','000908','000909','000910','000911','000912','000913',
+            '000915','000916','000917','000918','000919','000921','000922','000923','000925','000926',
+            '000927','000928','000929','000930','000931','000932','000933','000935','000936','000937',
+            '000938','000939','000948','000949','000951','000952','000953','000955','000956','000957',
+            '000958','000959','000960','000961','000962','000963','000965','000966','000967','000968',
+            '000969','000970','000971','000972','000977','000978','000979','000980','000981','000982',
+            '000983','000985','000986','000987','000988','000989','000990','000991','000995','000996',
+            '000997','000998','000999','001914','001916','001919','001965','001896','001897','001914',
+            '001915','001916','001917','001918','001919','001920','001921','001922','001923','001924',
+            '001925','001926','001927','001928','001929','001930','001931','001932','001933','001935',
+            '001896','001914','001965',
+            // 创业板
+            '300001','300002','300003','300004','300006','300007','300008','300009','300010','300011',
+            '300012','300013','300014','300015','300016','300017','300018','300019','300020','300021',
+            '300022','300023','300024','300025','300026','300027','300028','300029','300030','300031',
+            '300032','300033','300034','300035','300036','300037','300038','300039','300040','300041',
+            '300042','300043','300044','300045','300046','300047','300048','300049','300050','300051',
+            '300052','300053','300054','300055','300056','300057','300058','300059','300060','300061',
+            '300062','300063','300064','300065','300066','300067','300068','300069','300070','300071',
+            '300072','300073','300074','300075','300076','300077','300078','300079','300080','300081',
+            '300082','300083','300084','300085','300086','300087','300088','300089','300090','300091',
+            '300092','300093','300094','300095','300096','300097','300098','300099','300100','300101',
+            '300102','300103','300104','300105','300106','300107','300108','300109','300110','300111',
+            '300112','300113','300114','300115','300116','300117','300118','300119','300120','300121',
+            '300122','300123','300124','300125','300126','300127','300128','300129','300130','300131',
+            '300132','300133','300134','300135','300136','300137','300138','300139','300140','300141',
+            '300142','300143','300144','300145','300146','300147','300148','300149','300150','300151',
+            '300152','300153','300154','300155','300156','300157','300158','300159','300160','300161',
+            '300162','300163','300164','300165','300166','300167','300168','300169','300170','300171',
+            '300172','300173','300174','300175','300176','300177','300178','300179','300180','300181',
+            '300182','300183','300184','300185','300186','300187','300188','300189','300190','300191',
+            '300192','300193','300194','300195','300196','300197','300198','300199','300200','300201',
+            '300202','300203','300204','300205','300206','300207','300208','300209','300210','300211',
+            '300212','300213','300214','300215','300216','300217','300218','300219','300220','300221',
+            '300222','300223','300224','300225','300226','300227','300228','300229','300230','300231',
+            '300232','300233','300234','300235','300236','300237','300238','300239','300240','300241',
+            '300242','300243','300244','300245','300246','300247','300248','300249','300250','300251',
+            '300252','300253','300254','300255','300256','300257','300258','300259','300260','300261',
+            '300262','300263','300264','300265','300266','300267','300268','300269','300270','300271',
+            '300272','300273','300274','300275','300276','300277','300278','300279','300280','300281',
+            '300282','300283','300284','300285','300286','300287','300288','300289','300290','300291',
+            '300292','300293','300294','300295','300296','300297','300298','300299','300300','300301',
+            '300302','300303','300304','300305','300306','300307','300308','300309','300310','300311',
+            '300312','300313','300314','300315','300316','300317','300318','300319','300320','300321',
+            '300322','300323','300324','300325','300326','300327','300328','300329','300330','300331',
+            '300332','300333','300334','300335','300336','300337','300338','300339','300340','300341',
+            '300342','300343','300344','300345','300346','300347','300348','300349','300350','300351',
+            '300352','300353','300354','300355','300356','300357','300358','300359','300360','300363',
+            '300364','300365','300366','300367','300368','300369','300370','300373','300374','300375',
+            '300376','300377','300378','300379','300380','300381','300382','300383','300384','300385',
+            '300386','300387','300388','300389','300390','300391','300392','300393','300394','300395',
+            '300396','300397','300398','300399','300401','300402','300403','300404','300405','300406',
+            '300407','300408','300409','300410','300411','300412','300413','300414','300415','300416',
+            '300417','300418','300419','300420','300421','300422','300423','300424','300425','300426',
+            '300428','300429','300430','300432','300433','300434','300435','300436','300437','300438',
+            '300439','300440','300441','300442','300443','300444','300445','300446','300447','300448',
+            '300449','300450','300451','300452','300453','300454','300455','300456','300457','300458',
+            '300459','300460','300461','300462','300463','300464','300465','300466','300467','300468',
+            '300469','300470','300471','300472','300473','300474','300475','300476','300477','300478',
+            '300479','300480','300481','300482','300483','300484','300485','300486','300487','300488',
+            '300489','300490','300491','300492','300493','300494','300495','300496','300497','300498',
+            '300499','300500','300501','300502','300503','300504','300505','300506','300507','300508',
+            '300509','300510','300511','300512','300513','300514','300515','300516','300517','300518',
+            '300519','300520','300521','300522','300523','300525','300529','300530','300531','300532',
+            '300533','300534','300535','300536','300537','300538','300539','300540','300541','300542',
+            '300543','300544','300545','300546','300547','300548','300549','300550','300551','300552',
+            '300553','300554','300555','300556','300557','300558','300559','300560','300561','300562',
+            '300563','300564','300565','300566','300567','300568','300569','300570','300571','300572',
+            '300573','300575','300576','300577','300578','300579','300580','300581','300582','300583',
+            '300584','300585','300586','300587','300588','300589','300590','300591','300592','300593',
+            '300594','300595','300596','300597','300598','300599','300600','300601','300602','300603',
+            '300604','300605','300606','300607','300608','300609','300610','300611','300612','300613',
+            '300614','300615','300616','300617','300618','300619','300620','300621','300622','300623',
+            '300624','300625','300626','300627','300628','300629','300630','300631','300632','300633',
+            '300634','300635','300636','300637','300638','300639','300640','300641','300642','300643',
+            '300644','300645','300646','300647','300648','300649','300650','300651','300652','300653',
+            '300654','300655','300656','300657','300658','300659','300660','300661','300662','300663',
+            '300664','300665','300666','300667','300668','300669','300670','300671','300672','300673',
+            '300674','300675','300676','300677','300678','300679','300680','300681','300682','300683',
+            '300684','300685','300686','300687','300688','300689','300690','300691','300692','300693',
+            '300694','300695','300696','300697','300698','300699','300700','300701','300702','300703',
+            '300704','300705','300706','300707','300708','300709','300710','300711','300712','300715',
+            '300716','300717','300718','300719','300720','300721','300722','300723','300724','300725',
+            '300726','300727','300728','300729','300730','300731','300732','300733','300734','300735',
+            '300736','300737','300738','300739','300740','300741','300742','300743','300744','300745',
+            '300746','300747','300748','300749','300750','300751','300752','300753','300754','300755',
+            '300756','300757','300758','300759','300760','300761','300762','300763','300764','300765',
+            '300766','300767','300768','300769','300770','300771','300772','300773','300774','300775',
+            '300776','300777','300778','300779','300780','300781','300782','300783','300784','300785',
+            '300786','300787','300788','300789','300790','300791','300792','300793','300794','300795',
+            '300796','300797','300798','300799','300800','300801','300802','300803','300804','300805',
+            '300806','300807','300808','300809','300810','300811','300812','300813','300814','300815',
+            '300816','300817','300818','300819','300820','300821','300822','300823','300824','300825',
+            '300826','300827','300828','300829','300830','300831','300832','300833','300834','300835',
+            '300836','300837','300838','300839','300840','300841','300842','300843','300844','300845',
+            '300846','300847','300848','300849','300850','300851','300852','300853','300854','300855',
+            '300856','300857','300858','300859','300860','300861','300862','300863','300864','300865',
+            '300866','300867','300868','300869','300870','300871','300872','300873','300874','300875',
+            '300876','300877','300878','300879','300880','300881','300882','300883','300884','300885',
+            '300886','300887','300888','300889','300890','300891','300892','300893','300894','300895',
+            '300896','300897','300898','300899','300900','300901','300902','300903','300904','300905',
+            '300906','300907','300908','300909','300910','300911','300912','300913','300914','300915',
+            '300916','300917','300918','300919','300920','300921','300922','300923','300924','300925',
+            '300926','300927','300928','300929','300930','300931','300932','300933','300934','300935',
+            '300936','300937','300938','300939','300940','300941','300942','300943','300944','300945',
+            '300946','300947','300948','300949','300950','300951','300952','300953','300954','300955',
+            '300956','300957','300958','300959','300960','300961','300962','300963','300964','300965',
+            '300966','300967','300968','300969','300970','300971','300972','300973','300974','300975',
+            '300976','300977','300978','300979','300980','300981','300982','300983','300984','300985',
+            '300986','300987','300988','300989','300990','300991','300992','300993','300994','300995',
+            '300996','300997','300998','300999',
+            // 北交所
+            '430001','430002','430003','430004','430005','430007','430008','430009','430010','430011',
+            '430012','430013','430014','430015','430016','430017','430018','430019','430020','430021',
+            '430022','430023','430024','430025','430027','430028','430030','430031','430032','430033',
+            '430037','430038','430039','430040','430041','430042','430043','430044','430045','430046',
+            '430047','430048','430049','430050','430051','430052','430053','430054','430055','430056',
+            '430057','430058','430059','430060','430061','430062','430063','430064','430065','430066',
+            '430067','430068','430069','430070','430071','430072','430073','430074','430075','430076',
+            '430077','430078','430079','430080','430081','430082','430083','430084','430085','430086',
+            '430087','430088','430089','430090','430091','430092','430093','430094','430095','430096',
+            '430099','430100','430101','430102','430103','430104','430105','430106','430107','430108',
+            '430109','430110','430111','430112','430113','430114','430115','430116','430117','430118',
+            '430119','430120','430121','430122','430123','430124','430125','430126','430127','430128',
+            '430129','430130','430131','430132','430133','430134','430135','430136','430137','430138',
+            '430139','430140','430141','430142','430143','430144','430145','430146','430147','430148',
+            '430149','430150','430151','430152','430153','430154','430155','430156','430157','430158',
+            '430159','430160','430161','430162','430163','430164','430165','430166','430167','430168',
+            '430169','430170','430171','430172','430173','430174','430175','430176','430177','430178',
+            '430179','430180','430181','430182','430183','430184','430185','430186','430187','430188',
+            '430189','430190','430191','430192','430193','430194','430195','430196','430197','430198',
+            '430199','430200','430201','430202','430203','430204','430205','430206','430207','430208',
+            '430209','430210','430211','430212','430213','430214','430215','430216','430217','430218',
+            '430219','430220','430221','430222','430223','430224','430225','430226','430227','430228',
+            '430229','430230','430231','430232','430233','430234','430235','430236','430237','430238',
+            '430239','430240','430241','430242','430243','430244','430245','430246','430247','430248',
+            '430249','430250','430251','430252','430253','430254','430255','430256','430257','430258',
+            '430259','430260','430261','430262','430263','430264','430265','430266','430267','430268',
+            '430269','430270','430271','430272','430273','430274','430275','430276','430277','430278',
+            '430279','430280','430281','430282','430283','430284','430285','430286','430287','430288',
+            '430289','430290','430291','430292','430293','430294','430295','430296','430297','430298',
+            '430299','430300','430301','430302','430303','430304','430305','430306','430307','430308',
+            '430309','430310','430311','430312','430313','430314','430315','430316','430317','430318',
+            '430319','430320','430321','430322','430323','430324','430325','430326','430327','430328',
+            '430329','430330','430331','430332','430333','430334','430335','430336','430337','430338',
+            '430339','430340','430341','430342','430343','430344','430345','430346','430347','430348',
+            '430349','430350','430351','430352','430353','430354','430355','430356','430357','430358',
+            '430359','430360','430361','430362','430363','430364','430365','430366','430367','430368',
+            '430369','430370','430371','430372','430373','430374','430375','430376','430377','430378',
+            '430379','430380','430381','430382','430383','430384','430385','430386','430387','430388',
+            '430389','430390','430391','430392','430393','430394','430395','430396','430397','430398',
+            '430399','430400','430401','430402','430403','430404','430405','430406','430407','430408',
+            '430409','430410','430411','430412','430413','430414','430415','430416','430417','430418',
+            '430419','430420','430421','430422','430423','430424','430425','430426','430427','430428',
+            '430429','430430','430431','430432','430433','430434','430435','430436','430437','430438',
+            '430439','430440','430441','430442','430443','430444','430445','430446','430447','430448',
+            '430449','430450','430451','430452','430453','430454','430455','430456','430457','430458',
+            '430459','430460','430461','430462','430463','430464','430465','430466','430467','430468',
+            '430469','430470','430471','430472','430473','430474','430475','430476','430477','430478',
+            '430479','430480','430481','430482','430483','430484','430485','430486','430487','430488',
+            '430489','430490','430491','430492','430493','430494','430495','430496','430497','430498',
+            '430499','430500','430501','430502','430503','430504','430505','430506','430507','430508',
+            '430509','430510','430511','430512','430513','430514','430515','430516','430517','430518',
+            '430519','430520','430521','430522','430523','430524','430525','430526','430527','430528',
+            '430529','430530','430531','430532','430533','430534','430535','430536','430537','430538',
+            '430539','430540','430541','430542','430543','430544','430545','430546','430547','430548',
+            '430549','430550','430551','430552','430553','430554','430555','430556','430557','430558',
+            '430559','430560','430561','430562','430563','430564','430565','430566','430567','430568',
+            '430569','430570','430571','430572','430573','430574','430575','430576','430577','430578',
+            '430579','430580','430581','430582','430583','430584','430585','430586','430587','430588',
+            '430589','430590','430591','430592','430593','430594','430595','430596','430597','430598',
+            '430599','430600','430601','430602','430603','430604','430605','430606','430607','430608',
+            '430609','430610','430611','430612','430613','430614','430615','430616','430617','430618',
+            '430619','430620','430621','430622','430623','430624','430625','430626','430627','430628',
+            '430629','430630','430631','430632','430633','430634','430635','430636','430637','430638',
+            '430639','430640','430641','430642','430643','430644','430645','430646','430647','430648',
+            '430649','430650','430651','430652','430653','430654','430655','430656','430657','430658',
+            '430659','430660','430661','430662','430663','430664','430665','430666','430667','430668',
+            '430669','430670','430671','430672','430673','430674','430675','430676','430677','430678',
+            '430679','430680','430681','430682','430683','430684','430685','430686','430687','430688',
+            '430689','430690','430691','430692','430693','430694','430695','430696','430697','430698',
+            '430699','430700','430701','430702','430703','430704','430705','430706','430707','430708',
+            '430709','430710','430711','430712','430713','430714','430715','430716','430717','430718',
+            '430719','430720','430721','430722','430723','430724','430725','430726','430727','430728',
+            '430729','430730','430731','430732','430733','430734','430735','430736','430737','430738',
+            '430739','430740','430741','430742','430743','430744','430745','430746','430747','430748',
+            '430749','430750','430751','430752','430753','430754','430755','430756','430757','430758',
+            '430759','430760','430761','430762','430763','430764','430765','430766','430767','430768',
+            '430769','430770','430771','430772','430773','430774','430775','430776','430777','430778',
+            '430779','430780','430781','430782','430783','430784','430785','430786','430787','430788',
+            '430789','430790','430791','430792','430793','430794','430795','430796','430797','430798',
+            '430799','430800','430801','430802','430803','430804','430805','430806','430807','430808',
+            '430809','430810','430811','430812','430813','430814','430815','430816','430817','430818',
+            '430819','430820','430821','430822','430823','430824','430825','430826','430827','430828',
+            '430829','430830','430831','430832','430833','430834','430835','430836','430837','430838',
+            '430839','430840','430841','430842','430843','430844','430845','430846','430847','430848',
+            '430849','430850','430851','430852','430853','430854','430855','430856','430857','430858',
+            '430859','430860','430861','430862','430863','430864','430865','430866','430867','430868',
+            '430869','430870','430871','430872','430873','430874','430875','430876','430877','430878',
+            '430879','430880','430881','430882','430883','430884','430885','430886','430887','430888',
+            '430889','430890','430891','430892','430893','430894','430895','430896','430897','430898',
+            '430899','430900','430901','430902','430903','430904','430905','430906','430907','430908',
+            '430909','430910','430911','430912','430913','430914','430915','430916','430917','430918',
+            '430919','430920','430921','430922','430923','430924','430925','430926','430927','430928',
+            '430929','430930','430931','430932','430933','430934','430935','430936','430937','430938',
+            '430939','430940','430941','430942','430943','430944','430945','430946','430947','430948',
+            '430949','430950','430951','430952','430953','430954','430955','430956','430957','430958',
+            '430959','430960','430961','430962','430963','430964','430965','430966','430967','430968',
+            '430969','430970','430971','430972','430973','430974','430975','430976','430977','430978',
+            '430979','430980','430981','430982','430983','430984','430985','430986','430987','430988',
+            '430989','430990','430991','430992','430993','430994','430995','430996','430997','430998',
+            '430999','831001','831002','831003','831005','831006','831008','831009','831010','831012',
+            '831014','831015','831016','831017','831018','831019','831020','831021','831022','831023',
+            '831025','831026','831027','831028','831029','831030','831031','831032','831033','831034',
+            '831035','831036','831037','831038','831039','831040','831041','831042','831043','831044',
+            '831045','831046','831047','831048','831049','831050','831051','831052','831053','831055',
+            '831056','831057','831058','831059','831060','831061','831062','831063','831065','831066',
+            '831067','831068','831069','831070','831071','831072','831073','831075','831076','831077',
+            '831078','831079','831080','831081','831082','831083','831084','831085','831086','831087',
+            '831088','831089','831090','831091','831092','831093','831095','831096','831098','831099',
+            '831100','831101','831102','831103','831105','831106','831108','831109','831110','831111',
+            '831112','831113','831115','831117','831118','831119','831120','831121','831122','831125',
+            '831126','831127','831128','831129','831130','831131','831133','831135','831136','831138',
+            '831139','831140','831141','831142','831143','831145','831146','831147','831148','831149',
+            '831150','831151','831152','831153','831155','831156','831157','831158','831159','831160',
+            '831161','831162','831163','831164','831165','831166','831167','831168','831169','831170',
+            '831171','831172','831173','831175','831176','831177','831178','831179','831180','831181',
+            '831182','831183','831185','831186','831187','831188','831189','831190','831191','831192',
+            '831193','831195','831196','831197','831198','831199','831200','831201','831202','831203',
+            '831205','831206','831207','831208','831209','831210','831211','831212','831213','831215',
+            '831216','831217','831218','831219','831220','831221','831222','831223','831225','831226',
+            '831227','831228','831229','831230','831231','831232','831233','831235','831236','831237',
+            '831238','831239','831240','831241','831242','831243','831245','831246','831248','831249',
+            '831250','831251','831252','831253','831255','831256','831257','831258','831259','831260',
+            '831265','831266','831267','831268','831269','831270','831275','831280','831285','831290',
+            '831297','831298','831299','831303','831304','831305','831310','831311','831312','831315',
+            '831317','831318','831319','831320','831325','831330','831340','831350','831360','831370',
+            '831380','831390','831400','831410','831420','831430','831440','831450','831460','831470',
+            '831480','831490','831500','831510','831520','831530','831540','831550','831560','831570',
+            '831580','831590','831600','831610','831620','831630','831640','831650','831660','831670',
+            '831680','831690','831700','831710','831720','831730','831740','831750','831760','831770',
+            '831780','831790','831800','831810','831820','831830','831840','831850','831860','831870',
+            '831880','831890','831900','831910','831920','831930','831940','831950','831960','831970',
+            '831980','831990','832000','832010','832020','832030','832040','832050','832060','832070',
+            '832080','832090','832100','832110','832120','832130','832140','832150','832160','832170',
+            '832180','832190','832200','832210','832220','832230','832240','832250','832260','832270',
+            '832280','832290','832300','832310','832320','832330','832340','832350','832360','832370',
+            '832380','832390','832400','832410','832420','832430','832440','832450','832460','832470',
+            '832480','832490','832500','832510','832520','832530','832540','832550','832560','832570',
+            '832580','832590','832600','832610','832620','832630','832640','832650','832660','832670',
+            '832680','832690','832700','832710','832720','832730','832740','832750','832760','832770',
+            '832780','832790','832800','832810','832820','832830','832840','832850','832860','832870',
+            '832880','832890','832900','832910','832920','832930','832940','832950','832960','832970',
+            '832980','832990','833000','833010','833020','833030','833040','833050','833060','833070',
+            '833080','833090','833100','833110','833120','833130','833140','833150','833160','833170',
+            '833180','833190','833200','833210','833220','833230','833240','833250','833260','833270',
+            '833280','833290','833300','833310','833320','833330','833340','833350','833360','833370',
+            '833380','833390','833400','833410','833420','833430','833440','833450','833460','833470',
+            '833480','833490','833500','833510','833520','833530','833540','833550','833560','833570',
+            '833580','833590','833600','833610','833620','833630','833640','833650','833660','833670',
+            '833680','833690','833700','833710','833720','833730','833740','833750','833760','833770',
+            '833780','833790','833800','833810','833820','833830','833840','833850','833860','833870',
+            '833880','833890','833900','833910','833920','833930','833940','833950','833960','833970',
+            '833980','833990','834000','834001','834002','834003','834004','834005','834006','834007',
+            '834008','834009','834010','834011','834012','834013','834014','834015','834016','834017',
+            '834018','834019','834020','834021','834022','834023','834024','834025','834026','834027',
+            '834028','834029','834030','834031','834032','834033','834034','834035','834036','834037',
+            '834038','834039','834040','834041','834042','834043','834044','834045','834046','834047',
+            '834048','834049','834050','834051','834052','834053','834054','834055','834056','834057',
+            '834058','834059','834060','834061','834062','834063','834064','834065','834066','834067',
+            '834068','834069','834070','834071','834072','834073','834074','834075','834076','834077',
+            '834078','834079','834080','834081','834082','834083','834084','834085','834086','834087',
+            '834088','834089','834090','834091','834092','834093','834094','834095','834096','834097',
+            '834098','834099','834100','834101','834102','834103','834104','834105','834106','834107',
+            '834108','834109','834110','834111','834112','834113','834114','834115','834116','834117',
+            '834118','834119','834120','834121','834122','834123','834124','834125','834126','834127',
+            '834128','834129','834130','834131','834132','834133','834134','834135','834136','834137',
+            '834138','834139','834140','834141','834142','834143','834144','834145','834146','834147',
+            '834148','834149','834150','834151','834152','834153','834154','834155','834156','834157',
+            '834158','834159','834160','834161','834162','834163','834164','834165','834166','834167',
+            '834168','834169','834170','834171','834172','834173','834174','834175','834176','834177',
+            '834178','834179','834180','834181','834182','834183','834184','834185','834186','834187',
+            '834188','834189','834190','834191','834192','834193','834194','834195','834196','834197',
+            '834198','834199','834200','834201','834202','834203','834204','834205','834206','834207',
+            '834208','834209','834210','834211','834212','834213','834214','834215','834216','834217',
+            '834218','834219','834220','834221','834222','834223','834224','834225','834226','834227',
+            '834228','834229','834230','834231','834232','834233','834234','834235','834236','834237',
+            '834238','834239','834240','834241','834242','834243','834244','834245','834246','834247',
+            '834248','834249','834250','834251','834252','834253','834254','834255','834256','834257',
+            '834258','834259','834260','834261','834262','834263','834264','834265','834266','834267',
+            '834268','834269','834270','834271','834272','834273','834274','834275','834276','834277',
+            '834278','834279','834280','834281','834282','834283','834284','834285','834286','834287',
+            '834288','834289','834290','834291','834292','834293','834294','834295','834296','834297',
+            '834298','834299','834300','834301','834302','834303','834304','834305','834306','834307',
+            '834308','834309','834310','834311','834312','834313','834314','834315','834316','834317',
+            '834318','834319','834320','834321','834322','834323','834324','834325','834326','834327',
+            '834328','834329','834330','834331','834332','834333','834334','834335','834336','834337',
+            '834338','834339','834340','834341','834342','834343','834344','834345','834346','834347',
+            '834348','834349','834350','834351','834352','834353','834354','834355','834356','834357',
+            '834358','834359','834360','834361','834362','834363','834364','834365','834366','834367',
+            '834368','834369','834370','834371','834372','834373','834374','834375','834376','834377',
+            '834378','834379','834380','834381','834382','834383','834384','834385','834386','834387',
+            '834388','834389','834390','834391','834392','834393','834394','834395','834396','834397',
+            '834398','834399','834400','834401','834402','834403','834404','834405','834406','834407',
+            '834408','834409','834410','834411','834412','834413','834414','834415','834416','834417',
+            '834418','834419','834420','834421','834422','834423','834424','834425','834426','834427',
+            '834428','834429','834430','834431','834432','834433','834434','834435','834436','834437',
+            '834438','834439','834440','834441','834442','834443','834444','834445','834446','834447',
+            '834448','834449','834450','834451','834452','834453','834454','834455','834456','834457',
+            '834458','834459','834460','834461','834462','834463','834464','834465','834466','834467',
+            '834468','834469','834470','834471','834472','834473','834474','834475','834476','834477',
+            '834478','834479','834480','834481','834482','834483','834484','834485','834486','834487',
+            '834488','834489','834490','834491','834492','834493','834494','834495','834496','834497',
+            '834498','834499','834500','834501','834502','834503','834504','834505','834506','834507',
+            '834508','834509','834510','834511','834512','834513','834514','834515','834516','834517',
+            '834518','834519','834520','834521','834522','834523','834524','834525','834526','834527',
+            '834528','834529','834530','834531','834532','834533','834534','834535','834536','834537',
+            '834538','834539','834540','834541','834542','834543','834544','834545','834546','834547',
+            '834548','834549','834550','834551','834552','834553','834554','834555','834556','834557',
+            '834558','834559','834560','834561','834562','834563','834564','834565','834566','834567',
+            '834568','834569','834570','834571','834572','834573','834574','834575','834576','834577',
+            '834578','834579','834580','834581','834582','834583','834584','834585','834586','834587',
+            '834588','834589','834590','834591','834592','834593','834594','834595','834596','834597',
+            '834598','834599','834600','834601','834602','834603','834604','834605','834606','834607',
+            '834608','834609','834610','834611','834612','834613','834614','834615','834616','834617',
+            '834618','834619','834620','834621','834622','834623','834624','834625','834626','834627',
+            '834628','834629','834630','834631','834632','834633','834634','834635','834636','834637',
+            '834638','834639','834640','834641','834642','834643','834644','834645','834646','834647',
+            '834648','834649','834650','834651','834652','834653','834654','834655','834656','834657',
+            '834658','834659','834660','834661','834662','834663','834664','834665','834666','834667',
+            '834668','834669','834670','834671','834672','834673','834674','834675','834676','834677',
+            '834678','834679','834680','834681','834682','834683','834684','834685','834686','834687',
+            '834688','834689','834690','834691','834692','834693','834694','834695','834696','834697',
+            '834698','834699','834700','834701','834702','834703','834704','834705','834706','834707',
+            '834708','834709','834710','834711','834712','834713','834714','834715','834716','834717',
+            '834718','834719','834720','834721','834722','834723','834724','834725','834726','834727',
+            '834728','834729','834730','834731','834732','834733','834734','834735','834736','834737',
+            '834738','834739','834740','834741','834742','834743','834744','834745','834746','834747',
+            '834748','834749','834750','834751','834752','834753','834754','834755','834756','834757',
+            '834758','834759','834760','834761','834762','834763','834764','834765','834766','834767',
+            '834768','834769','834770','834771','834772','834773','834774','834775','834776','834777',
+            '834778','834779','834780','834781','834782','834783','834784','834785','834786','834787',
+            '834788','834789','834790','834791','834792','834793','834794','834795','834796','834797',
+            '834798','834799','834800','834801','834802','834803','834804','834805','834806','834807',
+            '834808','834809','834810','834811','834812','834813','834814','834815','834816','834817',
+            '834818','834819','834820','834821','834822','834823','834824','834825','834826','834827',
+            '834828','834829','834830','834831','834832','834833','834834','834835','834836','834837',
+            '834838','834839','834840','834841','834842','834843','834844','834845','834846','834847',
+            '834848','834849','834850','834851','834852','834853','834854','834855','834856','834857',
+            '834858','834859','834860','834861','834862','834863','834864','834865','834866','834867',
+            '834868','834869','834870','834871','834872','834873','834874','834875','834876','834877',
+            '834878','834879','834880','834881','834882','834883','834884','834885','834886','834887',
+            '834888','834889','834890','834891','834892','834893','834894','834895','834896','834897',
+            '834898','834899','834900','834901','834902','834903','834904','834905','834906','834907',
+            '834908','834909','834910','834911','834912','834913','834914','834915','834916','834917',
+            '834918','834919','834920','834921','834922','834923','834924','834925','834926','834927',
+            '834928','834929','834930','834931','834932','834933','834934','834935','834936','834937',
+            '834938','834939','834940','834941','834942','834943','834944','834945','834946','834947',
+            '834948','834949','834950','834951','834952','834953','834954','834955','834956','834957',
+            '834958','834959','834960','834961','834962','834963','834964','834965','834966','834967',
+            '834968','834969','834970','834971','834972','834973','834974','834975','834976','834977',
+            '834978','834979','834980','834981','834982','834983','834984','834985','834986','834987',
+            '834988','834989','834990','834991','834992','834993','834994','834995','834996','834997',
+            '834998','834999','835000','870000','870001','870002','870003','870004','870005','870006',
+            '870007','870008','870009','870010','870011','870012','870013','870014','870015','870016',
+            '870017','870018','870019','870020','870021','870022','870023','870024','870025','870026',
+            '870027','870028','870029','870030','870031','870032','870033','870034','870035','870036',
+            '870037','870038','870039','870040','870041','870042','870043','870044','870045','870046',
+            '870047','870048','870049','870050','870051','870052','870053','870054','870055','870056',
+            '870057','870058','870059','870060','870061','870062','870063','870064','870065','870066',
+            '870067','870068','870069','870070','870071','870072','870073','870074','870075','870076',
+            '870077','870078','870079','870080','870081','870082','870083','870084','870085','870086',
+            '870087','870088','870089','870090','870091','870092','870093','870094','870095','870096',
+            '870097','870098','870099','870100','870101','870102','870103','870104','870105','870106',
+            '870107','870108','870109','870110','870111','870112','870113','870114','870115','870116',
+            '870117','870118','870119','870120','870121','870122','870123','870124','870125','870126',
+            '870127','870128','870129','870130','870131','870132','870133','870134','870135','870136',
+            '870137','870138','870139','870140','870141','870142','870143','870144','870145','870146',
+            '870147','870148','870149','870150','870151','870152','870153','870154','870155','870156',
+            '870157','870158','870159','870160','870161','870162','870163','870164','870165','870166',
+            '870167','870168','870169','870170','870171','870172','870173','870174','870175','870176',
+            '870177','870178','870179','870180','870181','870182','870183','870184','870185','870186',
+            '870187','870188','870189','870190','870191','870192','870193','870194','870195','870196',
+            '870197','870198','870199','870200','870201','870202','870203','870204','870205','870206',
+            '870207','870208','870209','870210','870211','870212','870213','870214','870215','870216',
+            '870217','870218','870219','870220','870221','870222','870223','870224','870225','870226',
+            '870227','870228','870229','870230','870231','870232','870233','870234','870235','870236',
+            '870237','870238','870239','870240','870241','870242','870243','870244','870245','870246',
+            '870247','870248','870249','870250','870251','870252','870253','870254','870255','870256',
+            '870257','870258','870259','870260','870261','870262','870263','870264','870265','870266',
+            '870267','870268','870269','870270','870271','870272','870273','870274','870275','870276',
+            '870277','870278','870279','870280','870281','870282','870283','870284','870285','870286',
+            '870287','870288','870289','870290','870291','870292','870293','870294','870295','870296',
+            '870297','870298','870299','870300','870301','870302','870303','870304','870305','870306',
+            '870307','870308','870309','870310','870311','870312','870313','870314','870315','870316',
+            '870317','870318','870319','870320','870321','870322','870323','870324','870325','870326',
+            '870327','870328','870329','870330','870331','870332','870333','870334','870335','870336',
+            '870337','870338','870339','870340','870341','870342','870343','870344','870345','870346',
+            '870347','870348','870349','870350','870351','870352','870353','870354','870355','870356',
+            '870357','870358','870359','870360','870361','870362','870363','870364','870365','870366',
+            '870367','870368','870369','870370','870371','870372','870373','870374','870375','870376',
+            '870377','870378','870379','870380','870381','870382','870383','870384','870385','870386',
+            '870387','870388','870389','870390','870391','870392','870393','870394','870395','870396',
+            '870397','870398','870399','870400','870401','870402','870403','870404','870405','870406',
+            '870407','870408','870409','870410','870411','870412','870413','870414','870415','870416',
+            '870417','870418','870419','870420','870421','870422','870423','870424','870425','870426',
+            '870427','870428','870429','870430','870431','870432','870433','870434','870435','870436',
+            '870437','870438','870439','870440','870441','870442','870443','870444','870445','870446',
+            '870447','870448','870449','870450','870451','870452','870453','870454','870455','870456',
+            '870457','870458','870459','870460','870461','870462','870463','870464','870465','870466',
+            '870467','870468','870469','870470','870471','870472','870473','870474','870475','870476',
+            '870477','870478','870479','870480','870481','870482','870483','870484','870485','870486',
+            '870487','870488','870489','870490','870491','870492','870493','870494','870495','870496',
+            '870497','870498','870499','870500'
+        ];
+
+        // 从腾讯财经API获取A股股票数据
+        async function fetchStockDataFromEastMoney() {
+            return new Promise((resolve, reject) => {
+                // 腾讯股票代码前缀：沪市sh，深市sz
+                const codes = stockCodeList.map(code => {
+                    if (code.startsWith('6') || code.startsWith('688') || code.startsWith('8') || code.startsWith('4') || code.startsWith('83')) {
+                        return 'sh' + code;
+                    }
+                    return 'sz' + code;
+                });
+
+                // 腾讯API每次最多查询1000只，分批处理
+                const batchSize = 900;
+                const batches = [];
+                for (let i = 0; i < codes.length; i += batchSize) {
+                    batches.push(codes.slice(i, i + batchSize));
+                }
+
+                let allData = [];
+                let completed = 0;
+
+                const fetchBatch = async (batch) => {
+                    return new Promise((res, rej) => {
+                        const url = `https://qt.gtimg.cn/q=${batch.join(',')}`;
+                        const timeout = setTimeout(() => {
+                            rej(new Error('请求超时'));
+                        }, 15000);
+
+                        fetch(url).then(response => response.text()).then(text => {
+                            clearTimeout(timeout);
+                            // 解析返回数据格式: v_sh600000="1~浦发银行~600000~..."
+                            const stockList = [];
+                            const lines = text.split(';');
+                            for (const line of lines) {
+                                const match = line.match(/v_(sh\d+|sz\d+)="([^~]+)~([^~]+)/);
+                                if (match) {
+                                    const fullCode = match[1];
+                                    const code = fullCode.substring(2); // 去掉sh或sz前缀
+                                    const name = match[3];
+                                    let market = '';
+
+                                    if (fullCode.startsWith('sh')) {
+                                        if (code.startsWith('688') || code.startsWith('8')) {
+                                            market = '上交所';
+                                        } else {
+                                            market = '上交所';
+                                        }
+                                    } else {
+                                        if (code.startsWith('8') || code.startsWith('4') || code.startsWith('83')) {
+                                            market = '北交所';
+                                        } else {
+                                            market = '深交所';
+                                        }
+                                    }
+
+                                    stockList.push({ code, name, market });
+                                }
+                            }
+                            res(stockList);
+                        }).catch(err => {
+                            clearTimeout(timeout);
+                            rej(err);
+                        });
+                    });
+                };
+
+                // 逐批获取
+                const processBatches = async () => {
+                    for (const batch of batches) {
+                        try {
+                            const data = await fetchBatch(batch);
+                            allData = allData.concat(data);
+                            completed++;
+                        } catch (err) {
+                            console.error('批次获取失败:', err);
+                        }
+                    }
+
+                    // 过滤无效数据并排序
+                    const validData = allData.filter(s => s.code && s.name).sort((a, b) => a.code.localeCompare(b.code));
+
+                    console.log('腾讯API获取股票数据:', validData.length, '条');
+
+                    // 存储到本地缓存
+                    try {
+                        localStorage.setItem('aStockCache', JSON.stringify({
+                            data: validData,
+                            timestamp: Date.now()
+                        }));
+                    } catch (e) {
+                        console.warn('缓存股票数据失败:', e);
+                    }
+
+                    resolve(validData);
+                };
+
+                processBatches();
+            });
+        }
+
+        // 加载股票数据（优先从缓存获取，失败则从API获取）
+        // 初始化股票输入框（使用实时API查询，不再预加载本地数据）
+        function loadStockData() {
+            // 直接启用输入框，查询时使用实时API
+            enableStockInputs();
+        }
+
+        // 启用股票输入框（使用实时API查询，不再依赖本地数据）
+        function enableStockInputs() {
+            const nameInput = document.getElementById('stockName');
+            const codeInput = document.getElementById('stockCode');
+            const hint = document.getElementById('stockHint');
+
+            if (nameInput) {
+                nameInput.disabled = false;
+            }
+            if (codeInput) {
+                codeInput.disabled = false;
+            }
+            if (hint) {
+                hint.textContent = '输入名称后回车或失焦自动查询代码';
+            }
+        }
+
+        // 根据股票名称获取股票代码和市场（精确匹配优先，然后是开头匹配）
+        function getStockByName(name) {
+            if (!name) return null;
+            // 精确匹配
+            let stock = aStockData.find(s => s.name === name);
+            if (stock) return stock;
+            // 开头匹配（优先）
+            stock = aStockData.find(s => s.name.startsWith(name));
+            if (stock) return stock;
+            // 包含匹配（最后后备）
+            return aStockData.find(s => s.name.includes(name));
+        }
+
+        // 根据股票代码获取股票名称和市场（精确匹配优先）
+        function getStockByCode(code) {
+            if (!code) return null;
+            // 精确匹配
+            let stock = aStockData.find(s => s.code === code);
+            if (stock) return stock;
+            // 开头匹配
+            return aStockData.find(s => s.code.startsWith(code));
+        }
+
+        // 根据代码自动判断市场
+        function getMarketByCode(code) {
+            if (!code) return '';
+            if (code.startsWith('6') || code.startsWith('601') || code.startsWith('603')) {
+                return '上交所';
+            } else if (code.startsWith('0') || code.startsWith('00') || code.startsWith('3')) {
+                return '深交所';
+            } else if (code.startsWith('8') || code.startsWith('4') || code.startsWith('83')) {
+                return '北交所';
+            }
+            return '';
+        }
+
+        /* ── 股票名称/代码互查辅助函数 ── */
+        // 显示查询状态提示
+        function setStockHint(msg, isOk) {
+            const el = document.getElementById('stockHint');
+            if (!el) return;
+            el.style.color = isOk === true ? '#4ade80' : isOk === false ? '#f87171' : '#999';
+            el.textContent = msg;
+        }
+
+        // 腾讯行情API - 获取股票实时信息
+        function fetchQuoteTencent(code) {
+            return new Promise(resolve => {
+                const sym = code.startsWith('6') || code.startsWith('688') ? 'sh' + code : 'sz' + code;
+                const script = document.createElement("script");
+                const timer = setTimeout(() => {
+                    if (document.body.contains(script)) document.body.removeChild(script);
+                    resolve(null);
+                }, 6000);
+
+                // 腾讯API返回是直接赋值给 v_sym 全局变量，不是通过回调
+                script.onload = () => {
+                    clearTimeout(timer);
+                    try {
+                        const varName = "v_" + sym;
+                        const raw = window[varName];
+                        if (raw) {
+                            const parts = raw.split("~");
+                            // 腾讯格式：[1]名称,[3]当前价,[4]昨收
+                            const name = parts[1] || code;
+                            const price = parseFloat(parts[3]) || 0;
+                            const yClose = parseFloat(parts[4]) || price;
+                            resolve({ name, price, yClose });
+                        } else resolve(null);
+                    } catch(e) { resolve(null); }
+                    if (document.body.contains(script)) document.body.removeChild(script);
+                    delete window["v_" + sym];
+                };
+
+                script.onerror = () => { clearTimeout(timer); resolve(null); if (document.body.contains(script)) document.body.removeChild(script); };
+                script.src = `https://qt.gtimg.cn/q=${sym}`;
+                document.body.appendChild(script);
+            });
+        }
+
+        // 东方财富搜索API - 通过名称搜索股票代码
+        function searchStockCode(name) {
+            return new Promise(resolve => {
+                const cb = "_ef_search_" + Date.now();
+                const script = document.createElement("script");
+                const timer = setTimeout(() => {
+                    delete window[cb];
+                    if (document.body.contains(script)) document.body.removeChild(script);
+                    resolve(null);
+                }, 6000);
+
+                window[cb] = function(data) {
+                    clearTimeout(timer);
+                    if (document.body.contains(script)) document.body.removeChild(script);
+                    delete window[cb];
+                    try {
+                        // 东方财富搜索返回 QuotationCodeTable.Data 数组
+                        const items = data && data.QuotationCodeTable && data.QuotationCodeTable.Data;
+                        if (items && items.length) {
+                            // 优先完全匹配名称
+                            const exact = items.find(x => x.Name === name);
+                            const hit = exact || items[0];
+                            // Code 格式：SZ000001 / SH600519，截取后6位
+                            const raw = hit.Code || "";
+                            const code = raw.replace(/^[A-Za-z]+/, "").trim();
+                            resolve({ name: hit.Name || name, code });
+                        } else resolve(null);
+                    } catch(e) { resolve(null); }
+                };
+
+                const enc = encodeURIComponent(name);
+                script.src = `https://searchapi.eastmoney.com/api/suggest/get?input=${enc}&type=14&token=D43BF722C8E33BDC906FB84D85E326284&count=5&cb=${cb}`;
+                script.onerror = () => { clearTimeout(timer); resolve(null); if (document.body.contains(script)) document.body.removeChild(script); delete window[cb]; };
+                document.body.appendChild(script);
+            });
+        }
+
+        // 输入名称 → 自动查代码
+        async function stockNameLookup(name) {
+            if (!name) return;
+            setStockHint("⟳ 正在查询代码…", null);
+            const result = await searchStockCode(name);
+            if (!result || !result.code) {
+                setStockHint(`未找到"${name}"的代码，可手动输入`, false);
+                return;
+            }
+            const stockCodeInput = document.getElementById('stockCode');
+            const stockNameInput = document.getElementById('stockName');
+            stockCodeInput.value = result.code;
+            stockNameInput.value = result.name; // 用标准名称覆盖
+            setStockHint(`✓ ${result.name}（${result.code}）`, true);
+        }
+
+        // 输入代码 → 自动查名称
+        async function stockCodeLookup(code) {
+            if (!code || !/^\d{6}$/.test(code)) return;
+            setStockHint("⟳ 正在获取股票信息…", null);
+            const q = await fetchQuoteTencent(code);
+            if (!q || !q.name) {
+                setStockHint(`未能获取代码 ${code} 的信息，请检查代码`, false);
+                return;
+            }
+            const stockNameInput = document.getElementById('stockName');
+            stockNameInput.value = q.name;
+            setStockHint(`✓ ${q.name}（${code}）`, true);
+        }
+
+        // 页面加载时初始化
+        window.onload = async function() {
+            // 初始化排序配置 - 默认按盈亏率降序（从高到低）
+            window.sortConfig = { field: 'profitRate', asc: false };
+
+            // 检查是否有保存的连接信息
+            supabaseUrl = localStorage.getItem('supabase_url');
+            supabaseKey = localStorage.getItem('supabase_key');
+
+            if (!supabaseUrl || !supabaseKey) {
+                // 没有连接信息，跳转到登录页
+                window.location.href = 'login.html';
+                return;
+            }
+
+            // 显示项目URL
+            document.getElementById('projectUrl').textContent = supabaseUrl;
+
+            // 加载股票列表
+            loadStocks();
+
+            // 初始化股票输入框（使用实时API查询）
+            loadStockData();
+
+            // 绑定股票名称和代码的联动事件
+            bindStockEvents();
+        };
+
+        // 显示提示
+        function showAlert(message, type) {
+            const container = document.getElementById('alertContainer');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            container.innerHTML = '';
+            container.appendChild(alert);
+            
+            setTimeout(() => {
+                alert.remove();
+            }, 5000);
+        }
+
+        // 加载股票列表
+        async function loadStocks() {
+            try {
+                const response = await supabaseFetch('stocks?select=*&order=created_at.desc');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                const stocks = await response.json() || [];
+
+                // 先缓存股票数据
+                window.cachedStocks = stocks;
+                // 先渲染表格（生成价格单元格）
+                renderStockTable(stocks);
+                // 获取实时价格
+                await fetchAllStockPrices();
+                // 获取KDJ60数据
+                await fetchAllKDJ60();
+                // 价格获取后再排序并重新渲染（使用已获取的价格）
+                const sortedStocks = getSortedStocks(stocks);
+                renderSortedTable(sortedStocks);
+            } catch (error) {
+                showAlert('加载数据失败: ' + error.message, 'error');
+                console.error('Load error:', error);
+            }
+        }
+
+        // 获取排序后的股票列表
+        function getSortedStocks(stocks) {
+            if (!window.sortConfig.field) return stocks;
+
+            return [...stocks].sort((a, b) => {
+                let valA, valB;
+                if (window.sortConfig.field === 'profitRate') {
+                    const priceA = window.stockPrices?.[a.stock_code] || {};
+                    const priceB = window.stockPrices?.[b.stock_code] || {};
+                    valA = a.cost_price ? ((priceA.currentPrice || 0) - a.cost_price) / a.cost_price * 100 : 0;
+                    valB = b.cost_price ? ((priceB.currentPrice || 0) - b.cost_price) / b.cost_price * 100 : 0;
+                } else if (window.sortConfig.field === 'changeRate') {
+                    valA = window.stockPrices?.[a.stock_code]?.changeRate || 0;
+                    valB = window.stockPrices?.[b.stock_code]?.changeRate || 0;
+                } else if (window.sortConfig.field === 'kdj60') {
+                    valA = window.kdj60Data?.[a.stock_code]?.j || 0;
+                    valB = window.kdj60Data?.[b.stock_code]?.j || 0;
+                } else if (window.sortConfig.field === 'profitAmount') {
+                    const priceA = window.stockPrices?.[a.stock_code] || {};
+                    const priceB = window.stockPrices?.[b.stock_code] || {};
+                    valA = a.cost_price ? ((priceA.currentPrice || 0) - a.cost_price) * (a.quantity || 100) : 0;
+                    valB = b.cost_price ? ((priceB.currentPrice || 0) - b.cost_price) * (b.quantity || 100) : 0;
+                } else {
+                    valA = a[window.sortConfig.field];
+                    valB = b[window.sortConfig.field];
+                }
+                if (valA === null || valA === undefined) valA = 0;
+                if (valB === null || valB === undefined) valB = 0;
+                return window.sortConfig.asc ? valA - valB : valB - valA;
+            });
+        }
+
+        // 切换排序
+        async function toggleSort(field) {
+            if (window.sortConfig.field === field) {
+                window.sortConfig.asc = !window.sortConfig.asc;
+            } else {
+                window.sortConfig.field = field;
+                window.sortConfig.asc = false;
+            }
+            const stocks = window.cachedStocks || [];
+            if (stocks.length > 0) {
+                // 获取最新价格
+                await fetchAllStockPrices();
+                const sortedStocks = getSortedStocks(stocks);
+                renderStockTable(sortedStocks);
+            }
+        }
+
+        // 获取排序图标
+        function getSortIcon(field) {
+            if (window.sortConfig.field !== field) return '';
+            return window.sortConfig.asc ? ' ▲' : ' ▼';
+        }
+
+        // 渲染股票表格（不重新获取价格）
+        function renderStockTable(stocks) {
+            // 缓存股票数据
+            window.cachedStocks = stocks;
+
+            // 检查是否需要恢复高亮效果
+            let shouldRestoreHighlight = false;
+            let highlightedCode = null;
+
+            if (window.highlightedStock) {
+                const now = Date.now();
+                if (now < window.highlightedStock.expiresAt) {
+                    shouldRestoreHighlight = true;
+                    highlightedCode = window.highlightedStock.code;
+                    console.log('Will restore highlight for stock:', highlightedCode);
+                } else {
+                    // 高亮已过期,清除
+                    window.highlightedStock = null;
+                    console.log('Highlight expired, cleared');
+                }
+            }
+
+            const container = document.getElementById('stockList');
+            const getMarketBadge = (market) => {
+                if (market === '上交所') return '<span class="badge badge-sh">上交所</span>';
+                if (market === '深交所') return '<span class="badge badge-sz">深交所</span>';
+                if (market === '北交所') return '<span class="badge badge-bj">北交所</span>';
+                return `<span class="badge">${escapeHtml(market)}</span>`;
+            };
+
+            container.innerHTML = `
+                <div class="top-scroll-wrapper" id="topScrollWrapper"></div>
+                <div class="table-scroll-wrapper" id="tableScrollWrapper">
+                <table class="stock-table">
+                    <thead>
+                        <tr>
+                            <th>股票名称</th>
+                            <th>股票代码</th>
+                            <th>所属市场</th>
+                            <th>成本价</th>
+                            <th>持仓数量</th>
+                            <th>当前价</th>
+                            <th class="sortable" onclick="toggleSort('changeRate')">当日涨跌幅${getSortIcon('changeRate')}</th>
+                            <th class="sortable" onclick="toggleSort('profitAmount')">持仓收益${getSortIcon('profitAmount')}</th>
+                            <th class="sortable" onclick="toggleSort('profitRate')">盈亏率${getSortIcon('profitRate')}</th>
+                            <th class="sortable" onclick="toggleSort('kdj60')">KDJ 60${getSortIcon('kdj60')}</th>
+                            <th>目标价</th>
+                            <th>添加时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stockTableBody">
+                        ${stocks.map((stock, index) => `
+                            <tr data-index="${index}" data-code="${stock.stock_code}" data-cost="${stock.cost_price || 0}">
+                                <td>
+                                    <strong><a href="https://quote.eastmoney.com/${stock.stock_code.startsWith('6') ? 'sh' : 'sz'}${stock.stock_code}.html" target="_blank" class="stock-name-link">${escapeHtml(stock.stock_name)}</a></strong>
+                                    ${stock.notes ? `<div class="stock-notes">${escapeHtml(stock.notes)}</div>` : ''}
+                                </td>
+                                <td>${escapeHtml(stock.stock_code)}</td>
+                                <td>${getMarketBadge(stock.market)}</td>
+                                <td class="cost-price">${stock.cost_price ? '¥' + stock.cost_price : '-'}</td>
+                                <td>${stock.quantity || 100}</td>
+                                <td class="current-price" data-code="${stock.stock_code}">-</td>
+                                <td class="change-rate">-</td>
+                                <td class="profit-amount" data-cost="${stock.cost_price || 0}" data-quantity="${stock.quantity || 100}">-</td>
+                                <td class="profit-rate" data-cost="${stock.cost_price || 0}">-</td>
+                                <td class="kdj60-value" data-code="${stock.stock_code}">-</td>
+                                <td class="target-price">${stock.cost_price ? '¥' + (stock.cost_price * 1.03).toFixed(2) : '-'}</td>
+                                <td>${formatDate(stock.created_at)}</td>
+                                <td>
+                                    <button class="btn btn-edit" onclick="editStock(${stock.id}, '${escapeHtml(stock.stock_name)}', '${escapeHtml(stock.stock_code)}', '${escapeHtml(stock.market)}', ${stock.cost_price || 0}, ${stock.quantity || 100}, '${escapeHtml(stock.notes || '')}')">编辑</button>
+                                    <button class="btn btn-more" onclick="showMoreModal(${stock.id}, '${escapeHtml(stock.stock_name)}')">More</button>
+                                    <button class="btn btn-danger" onclick="deleteStock(${stock.id})">删除</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                </div>
+            `;
+
+            // 恢复箭头指示
+            if (shouldRestoreHighlight && highlightedCode) {
+                const highlightedRow = document.querySelector(`#stockTableBody tr[data-code="${highlightedCode}"]`);
+                if (highlightedRow) {
+                    highlightedRow.classList.add('search-matched');
+                    // 在股票名称前添加箭头
+                    const stockNameLink = highlightedRow.querySelector('.stock-name-link');
+                    if (stockNameLink && !stockNameLink.querySelector('.arrow-indicator')) {
+                        const arrow = document.createElement('span');
+                        arrow.className = 'arrow-indicator';
+                        arrow.innerHTML = '➜ ';
+                        stockNameLink.parentElement.insertBefore(arrow, stockNameLink);
+                    }
+                    console.log('Restored arrow indicator for stock:', highlightedCode);
+
+                    // 计算剩余的高亮时间
+                    const now = Date.now();
+                    const remainingTime = window.highlightedStock.expiresAt - now;
+                    console.log('Remaining indicator time:', remainingTime, 'ms');
+                }
+            }
+
+            // 同步顶部和底部滚动条
+            const topScrollWrapper = document.getElementById('topScrollWrapper');
+            const tableScrollWrapper = document.getElementById('tableScrollWrapper');
+
+            // 设置顶部滚动条内容宽度与表格宽度一致
+            const table = tableScrollWrapper.querySelector('table');
+            if (table) {
+                // 使用 requestAnimationFrame 确保表格已完全渲染
+                requestAnimationFrame(() => {
+                    const tableWidth = table.offsetWidth;
+                    const containerWidth = tableScrollWrapper.offsetWidth;
+                    // 确保宽度至少与容器宽度相等,以触发滚动条显示
+                    const contentWidth = Math.max(tableWidth, containerWidth);
+                    topScrollWrapper.style.width = '100%';
+                    topScrollWrapper.innerHTML = `<div style="width: ${contentWidth}px; height: 1px;"></div>`;
+                });
+            }
+
+            // 顶部滚动条滚动时，同步底部滚动条
+            topScrollWrapper.addEventListener('scroll', function() {
+                tableScrollWrapper.scrollLeft = this.scrollLeft;
+            });
+
+            // 底部滚动条滚动时，同步顶部滚动条
+            tableScrollWrapper.addEventListener('scroll', function() {
+                topScrollWrapper.scrollLeft = this.scrollLeft;
+            });
+
+            // 获取实时价格
+            fetchAllStockPrices();
+
+            // 获取指数数据
+            fetchIndexData();
+
+            // 获取KDJ60数据（首次加载）
+            fetchAllKDJ60();
+
+            // 每5秒刷新一次实时价格和指数
+            if (window.priceRefreshTimer) {
+                clearInterval(window.priceRefreshTimer);
+            }
+            window.priceRefreshTimer = setInterval(() => {
+                fetchAllStockPrices();
+                fetchIndexData();
+            }, 5000);
+
+            // 每5分钟刷新一次KDJ60数据
+            if (window.kdj60RefreshTimer) {
+                clearInterval(window.kdj60RefreshTimer);
+            }
+            window.kdj60RefreshTimer = setInterval(() => {
+                fetchAllKDJ60();
+            }, 300000);
+        }
+
+        // 渲染排序后的表格（使用已获取的价格，不重新获取）
+        function renderSortedTable(stocks) {
+            const container = document.getElementById('stockList');
+            const tbody = document.getElementById('stockTableBody');
+
+            // 保存当前的滚动位置
+            const tableScrollWrapper = document.getElementById('tableScrollWrapper');
+            const topScrollWrapper = document.getElementById('topScrollWrapper');
+            const savedScrollLeft = tableScrollWrapper ? tableScrollWrapper.scrollLeft : 0;
+            const getMarketBadge = (market) => {
+                if (market === '上交所') return '<span class="badge badge-sh">上交所</span>';
+                if (market === '深交所') return '<span class="badge badge-sz">深交所</span>';
+                if (market === '北交所') return '<span class="badge badge-bj">北交所</span>';
+                return `<span class="badge">${escapeHtml(market)}</span>`;
+            };
+
+            tbody.innerHTML = stocks.map((stock, index) => {
+                const priceData = window.stockPrices?.[stock.stock_code] || {};
+                const currentPrice = priceData.currentPrice || 0;
+                const changeRate = priceData.changeRate || 0;
+                const profitRate = stock.cost_price && currentPrice > 0
+                    ? ((currentPrice - stock.cost_price) / stock.cost_price * 100).toFixed(2)
+                    : 0;
+                const quantity = stock.quantity || 100;
+                const profitAmount = stock.cost_price && currentPrice > 0
+                    ? ((currentPrice - stock.cost_price) * quantity).toFixed(2)
+                    : 0;
+                const kdj60Data = window.kdj60Data?.[stock.stock_code];
+                const kdj60J = kdj60Data ? kdj60Data.j.toFixed(2) : '-';
+
+                return `
+                    <tr data-index="${index}" data-code="${stock.stock_code}" data-cost="${stock.cost_price || 0}">
+                        <td>
+                            <strong><a href="https://quote.eastmoney.com/${stock.stock_code.startsWith('6') ? 'sh' : 'sz'}${stock.stock_code}.html" target="_blank" class="stock-name-link">${escapeHtml(stock.stock_name)}</a></strong>
+                            ${stock.notes ? `<div class="stock-notes">${escapeHtml(stock.notes)}</div>` : ''}
+                        </td>
+                        <td>${escapeHtml(stock.stock_code)}</td>
+                        <td>${getMarketBadge(stock.market)}</td>
+                        <td class="cost-price">${stock.cost_price ? '¥' + stock.cost_price : '-'}</td>
+                        <td>${quantity}</td>
+                        <td class="current-price" data-code="${stock.stock_code}">${currentPrice > 0 ? '¥' + currentPrice.toFixed(2) : '-'}</td>
+                        <td class="change-rate ${changeRate >= 0 ? 'profit' : 'loss'}">${(changeRate >= 0 ? '+' : '') + changeRate.toFixed(2) + '%'}</td>
+                        <td class="profit-amount ${profitAmount >= 0 ? 'profit' : 'loss'}" data-cost="${stock.cost_price || 0}" data-quantity="${quantity}">${stock.cost_price ? (profitAmount >= 0 ? '+' : '') + '¥' + profitAmount : '-'}</td>
+                        <td class="profit-rate ${profitRate >= 0 ? 'profit' : 'loss'}" data-cost="${stock.cost_price || 0}">${stock.cost_price ? profitRate + '%' : '-'}</td>
+                        <td class="kdj60-value ${kdj60J !== '-' ? (kdj60Data.j > 80 ? 'kdj-overbought' : kdj60Data.j < 20 ? 'kdj-oversold' : 'kdj-neutral') : ''}" data-code="${stock.stock_code}">${kdj60J}</td>
+                        <td class="target-price">${stock.cost_price ? '¥' + (stock.cost_price * 1.03).toFixed(2) : '-'}</td>
+                        <td>${formatDate(stock.created_at)}</td>
+                        <td>
+                            <button class="btn btn-edit" onclick="editStock(${stock.id}, '${escapeHtml(stock.stock_name)}', '${escapeHtml(stock.stock_code)}', '${escapeHtml(stock.market)}', ${stock.cost_price || 0}, ${stock.quantity || 100}, '${escapeHtml(stock.notes || '')}')">编辑</button>
+                            <button class="btn btn-more" onclick="showMoreModal(${stock.id}, '${escapeHtml(stock.stock_name)}')">More</button>
+                            <button class="btn btn-danger" onclick="deleteStock(${stock.id})">删除</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            // 恢复箭头指示（排序后重新渲染）
+            if (window.highlightedStock) {
+                const now = Date.now();
+                if (now < window.highlightedStock.expiresAt) {
+                    const highlightedCode = window.highlightedStock.code;
+                    const highlightedRow = tbody.querySelector(`tr[data-code="${highlightedCode}"]`);
+                    if (highlightedRow) {
+                        highlightedRow.classList.add('search-matched');
+                        // 在股票名称前添加箭头
+                        const stockNameLink = highlightedRow.querySelector('.stock-name-link');
+                        if (stockNameLink && !highlightedRow.querySelector('.arrow-indicator')) {
+                            const arrow = document.createElement('span');
+                            arrow.className = 'arrow-indicator';
+                            arrow.innerHTML = '➜ ';
+                            stockNameLink.parentElement.insertBefore(arrow, stockNameLink);
+                        }
+                        console.log('Restored arrow indicator after sort for stock:', highlightedCode);
+                    }
+                }
+            }
+
+            // 更新表格头部的排序图标
+            const ths = container.querySelectorAll('th.sortable');
+            ths.forEach(th => {
+                const fieldMatch = th.getAttribute('onclick')?.match(/toggleSort\('(\w+)'\)/);
+                if (fieldMatch) {
+                    const field = fieldMatch[1];
+                    th.textContent = th.textContent.replace(/[ ▲▼]/g, '') + getSortIcon(field);
+                }
+            });
+
+            // 确保顶部滚动条和底部滚动条同步
+            const syncedTopScrollWrapper = document.getElementById('topScrollWrapper');
+            const syncedTableScrollWrapper = document.getElementById('tableScrollWrapper');
+            if (syncedTopScrollWrapper && syncedTableScrollWrapper) {
+                // 设置顶部滚动条内容宽度与表格宽度一致
+                const table = syncedTableScrollWrapper.querySelector('table');
+                if (table) {
+                    // 使用 requestAnimationFrame 确保表格已完全渲染
+                    requestAnimationFrame(() => {
+                        const tableWidth = table.offsetWidth;
+                        const containerWidth = syncedTableScrollWrapper.offsetWidth;
+                        // 确保宽度至少与容器宽度相等,以触发滚动条显示
+                        const contentWidth = Math.max(tableWidth, containerWidth);
+                        syncedTopScrollWrapper.innerHTML = `<div style="width: ${contentWidth}px; height: 1px;"></div>`;
+                    });
+                }
+
+                // 恢复滚动位置
+                if (savedScrollLeft > 0) {
+                    syncedTableScrollWrapper.scrollLeft = savedScrollLeft;
+                    syncedTopScrollWrapper.scrollLeft = savedScrollLeft;
+                }
+
+                // 顶部滚动条滚动时，同步底部滚动条
+                syncedTopScrollWrapper.addEventListener('scroll', function() {
+                    syncedTableScrollWrapper.scrollLeft = this.scrollLeft;
+                });
+
+                // 底部滚动条滚动时，同步顶部滚动条
+                syncedTableScrollWrapper.addEventListener('scroll', function() {
+                    syncedTopScrollWrapper.scrollLeft = this.scrollLeft;
+                });
+            }
+        }
+
+        // 获取所有股票的实时价格
+        async function fetchAllStockPrices() {
+            const priceCells = document.querySelectorAll('.current-price');
+            const codes = Array.from(priceCells).map(cell => cell.dataset.code);
+
+            for (const code of codes) {
+                await fetchStockPrice(code);
+            }
+        }
+
+        // 获取单个股票价格（腾讯财经API）
+        async function fetchStockPrice(code) {
+            return new Promise((resolve) => {
+                // 转换股票代码格式：600000 -> sh600000
+                let sym = code;
+                if (code.startsWith('6')) sym = 'sh' + code;
+                else if (code.startsWith('0') || code.startsWith('3')) sym = 'sz' + code;
+                else if (code.startsWith('8') || code.startsWith('4')) sym = 'bj' + code;
+
+                const script = document.createElement('script');
+                script.src = `https://qt.gtimg.cn/q=${sym}`;
+
+                script.onload = () => {
+                    try {
+                        const data = window['v_' + sym];
+                        if (data) {
+                            const parts = data.split('~');
+                            const currentPrice = parseFloat(parts[3]) || 0; // 当前价格
+                            // parts[32] 是涨跌幅 (已验证)
+                            let changeRate = parseFloat(parts[32]) || 0;
+                            // 如果是百分比字符串，去掉 % 符号
+                            if (typeof changeRate === 'string' && changeRate.includes('%')) {
+                                changeRate = parseFloat(changeRate.replace('%', '')) || 0;
+                            }
+
+                            // 存储价格数据用于排序
+                            window.stockPrices = window.stockPrices || {};
+                            window.stockPrices[code] = { currentPrice, changeRate };
+
+                            // 更新当前价
+                            const priceCell = document.querySelector(`.current-price[data-code="${code}"]`);
+                            if (priceCell) {
+                                priceCell.textContent = currentPrice > 0 ? '¥' + currentPrice.toFixed(2) : '-';
+                            }
+
+                            // 获取成本价并计算盈亏率
+                            const profitCell = priceCell?.closest('tr')?.querySelector('.profit-rate');
+                            if (profitCell) {
+                                const costPrice = parseFloat(profitCell.dataset.cost) || 0;
+                                if (costPrice > 0 && currentPrice > 0) {
+                                    const profitRate = parseFloat(((currentPrice - costPrice) / costPrice * 100).toFixed(2));
+                                    profitCell.textContent = profitRate + '%';
+                                    profitCell.className = 'profit-rate ' + (profitRate >= 0 ? 'profit' : 'loss');
+                                } else {
+                                    profitCell.textContent = '-';
+                                }
+                            }
+
+                            // 计算持仓收益（市值 - 成本市值）
+                            const profitAmountCell = priceCell?.closest('tr')?.querySelector('.profit-amount');
+                            if (profitAmountCell) {
+                                const costPrice = parseFloat(profitAmountCell.dataset.cost) || 0;
+                                const qty = parseInt(profitAmountCell.dataset.quantity) || 100;
+                                if (costPrice > 0 && currentPrice > 0) {
+                                    const profitAmount = parseFloat(((currentPrice - costPrice) * qty).toFixed(2));
+                                    profitAmountCell.textContent = (profitAmount >= 0 ? '+' : '') + '¥' + profitAmount;
+                                    profitAmountCell.className = 'profit-amount ' + (profitAmount >= 0 ? 'profit' : 'loss');
+                                } else {
+                                    profitAmountCell.textContent = '-';
+                                }
+                            }
+
+                            // 更新涨跌幅
+                            const changeCell = priceCell?.closest('tr')?.querySelector('.change-rate');
+                            if (changeCell) {
+                                changeCell.textContent = (changeRate >= 0 ? '+' : '') + changeRate.toFixed(2) + '%';
+                                changeCell.className = 'change-rate ' + (changeRate >= 0 ? 'profit' : 'loss');
+                            }
+
+                            // 如果当前按盈亏率、持仓收益、涨跌幅或KDJ60排序，则自动重新排序
+                            if (window.sortConfig.field === 'profitRate' || window.sortConfig.field === 'profitAmount' || window.sortConfig.field === 'changeRate' || window.sortConfig.field === 'kdj60') {
+                                const stocks = window.cachedStocks || [];
+                                if (stocks.length > 0) {
+                                    const sortedStocks = getSortedStocks(stocks);
+                                    // 重新渲染表格但不清除已获取的价格
+                                    renderSortedTable(sortedStocks);
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        console.error('解析股票数据失败:', code, e);
+                    }
+                    resolve();
+                };
+
+                script.onerror = () => {
+                    console.error('获取股票价格失败:', code);
+                    resolve();
+                };
+
+                document.head.appendChild(script);
+            });
+        }
+
+        // 转义 HTML
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 获取所有股票的KDJ60数据
+        async function fetchAllKDJ60() {
+            const kdjCells = document.querySelectorAll('.kdj60-value');
+            const codes = Array.from(kdjCells).map(cell => cell.dataset.code).filter(Boolean);
+            // 去重
+            const uniqueCodes = [...new Set(codes)];
+            for (const code of uniqueCodes) {
+                await fetchKDJ60(code);
+            }
+        }
+
+        // 获取单只股票的60分钟KDJ指标（使用腾讯财经API，支持CORS直接fetch）
+        async function fetchKDJ60(code) {
+            try {
+                // 确定市场前缀：6开头=沪市(sh)，0/3开头=深市(sz)，8/4开头=北交所(bj)
+                let prefix;
+                if (code.startsWith('6')) prefix = 'sh';
+                else if (code.startsWith('0') || code.startsWith('3')) prefix = 'sz';
+                else if (code.startsWith('8') || code.startsWith('4')) prefix = 'bj';
+                else prefix = 'sh';
+
+                const symbol = prefix + code;
+                const url = `https://ifzq.gtimg.cn/appstock/app/kline/mkline?param=${symbol},m60,,100`;
+
+                const response = await fetch(url);
+                const text = await response.text();
+                const result = JSON.parse(text);
+
+                const stockData = result.data && result.data[symbol];
+                if (stockData && stockData.m60 && stockData.m60.length > 0) {
+                    const klines = stockData.m60;
+                    // 腾讯数据格式: [时间, 开盘, 收盘, 最高, 最低, 成交量, {}, 换手率]
+                    const closes = [], highs = [], lows = [];
+
+                    for (const k of klines) {
+                        closes.push(parseFloat(k[2]));  // 收盘价
+                        highs.push(parseFloat(k[3]));    // 最高价
+                        lows.push(parseFloat(k[4]));     // 最低价
+                    }
+
+                    // 计算KDJ(9,3,3)
+                    const n = 9;
+                    let kVal = 50.0, dVal = 50.0;
+
+                    for (let i = n - 1; i < closes.length; i++) {
+                        let highest = -Infinity, lowest = Infinity;
+                        for (let j = i - n + 1; j <= i; j++) {
+                            if (highs[j] > highest) highest = highs[j];
+                            if (lows[j] < lowest) lowest = lows[j];
+                        }
+                        const rsv = (highest === lowest) ? 50.0 : (closes[i] - lowest) / (highest - lowest) * 100;
+                        kVal = 2 / 3 * kVal + 1 / 3 * rsv;
+                        dVal = 2 / 3 * dVal + 1 / 3 * kVal;
+                    }
+
+                    const jVal = 3 * kVal - 2 * dVal;
+
+                    // 存储KDJ数据
+                    window.kdj60Data = window.kdj60Data || {};
+                    window.kdj60Data[code] = { k: kVal, d: dVal, j: jVal };
+
+                    // 更新所有该股票的KDJ单元格
+                    document.querySelectorAll(`.kdj60-value[data-code="${code}"]`).forEach(cell => {
+                        cell.textContent = jVal.toFixed(2);
+                        cell.className = 'kdj60-value ' + (jVal > 80 ? 'kdj-overbought' : jVal < 20 ? 'kdj-oversold' : 'kdj-neutral');
+                    });
+
+                    // 如果当前按KDJ60排序，则重新排序
+                    if (window.sortConfig.field === 'kdj60') {
+                        const stocks = window.cachedStocks || [];
+                        if (stocks.length > 0) {
+                            const sortedStocks = getSortedStocks(stocks);
+                            renderSortedTable(sortedStocks);
+                        }
+                    }
+                } else {
+                    document.querySelectorAll(`.kdj60-value[data-code="${code}"]`).forEach(cell => {
+                        cell.textContent = '-';
+                    });
+                }
+            } catch (e) {
+                console.error('获取KDJ60数据失败:', code, e);
+                document.querySelectorAll(`.kdj60-value[data-code="${code}"]`).forEach(cell => {
+                    cell.textContent = '-';
+                });
+            }
+        }
+
+        // 格式化日期（只显示日期）
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('zh-CN', { 
+                year: 'numeric', 
+                month: '2-digit', 
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        // 显示添加表单
+        function showAddForm() {
+            isEditing = false;
+            document.getElementById('formTitle').textContent = '添加股票';
+            document.getElementById('submitBtn').textContent = '保存';
+            document.getElementById('stockForm').reset();
+            document.getElementById('stockId').value = '';
+            // 设置默认持仓数量
+            document.getElementById('stockQuantity').value = 100;
+            document.getElementById('stockCost').value = '';
+            document.getElementById('stockNotes').value = '';
+            document.getElementById('formCard').style.display = 'block';
+            document.getElementById('stockName').focus();
+
+            // 重置事件绑定状态
+            window._suppressStockEvents = false;
+        }
+
+        // 隐藏表单
+        function hideForm() {
+            document.getElementById('formCard').style.display = 'none';
+            document.getElementById('stockForm').reset();
+            document.getElementById('stockId').value = '';
+            isEditing = false;
+        }
+
+        // 编辑股票
+        function editStock(id, name, code, market, costPrice = 0, quantity = 100, notes = '') {
+            isEditing = true;
+            // 抑制联动事件
+            window._suppressStockEvents = true;
+            document.getElementById('formTitle').textContent = '编辑股票';
+            document.getElementById('submitBtn').textContent = '更新';
+            document.getElementById('stockId').value = id;
+            document.getElementById('stockName').value = name;
+            document.getElementById('stockCode').value = code;
+            document.getElementById('stockCost').value = costPrice > 0 ? costPrice : '';
+            document.getElementById('stockQuantity').value = quantity || 100;
+            document.getElementById('stockNotes').value = notes || '';
+            document.getElementById('formCard').style.display = 'block';
+            document.getElementById('stockName').focus();
+            // 短暂延迟后恢复联动（让用户可以进行后续操作）
+            setTimeout(() => {
+                window._suppressStockEvents = false;
+            }, 100);
+        }
+
+        // 保存股票
+        async function saveStock(event) {
+            event.preventDefault();
+
+            const id = document.getElementById('stockId').value;
+            const stockCode = document.getElementById('stockCode').value.trim();
+            const stockName = document.getElementById('stockName').value.trim();
+            const stockCost = parseFloat(document.getElementById('stockCost').value) || 0;
+            const stockQuantity = parseInt(document.getElementById('stockQuantity').value) || 100;
+            const stockNotes = document.getElementById('stockNotes').value.trim();
+
+            // 自动根据代码判断市场
+            const market = getMarketByCode(stockCode);
+
+            const stockData = {
+                stock_name: stockName,
+                stock_code: stockCode,
+                market: market,
+                cost_price: stockCost,
+                quantity: stockQuantity,
+                notes: stockNotes
+            };
+
+            try {
+                let response;
+                if (isEditing && id) {
+                    // PATCH 请求只需要过滤条件，不需要 update=*
+                    response = await supabaseFetch(`stocks?id=eq.${id}`, {
+                        method: 'PATCH',
+                        body: JSON.stringify(stockData),
+                        headers: { 'Prefer': 'return=minimal' }
+                    });
+                } else {
+                    // POST 请求添加新记录
+                    response = await supabaseFetch('stocks', {
+                        method: 'POST',
+                        body: JSON.stringify([stockData]),
+                        headers: { 'Prefer': 'return=minimal' }
+                    });
+                }
+
+                if (!response.ok) {
+                    const errText = await response.text();
+                    if (errText.includes('23505')) {
+                        throw new Error('股票代码已存在');
+                    }
+                    throw new Error(errText || `HTTP ${response.status}`);
+                }
+
+                showAlert(isEditing ? '更新成功！' : '添加成功！', 'success');
+                hideForm();
+
+                // 重新加载股票数据（会自动应用当前的排序配置）
+                await loadStocks();
+            } catch (error) {
+                showAlert('操作失败: ' + error.message, 'error');
+                console.error('Save error:', error);
+            }
+        }
+
+        // 删除股票
+        async function deleteStock(id) {
+            if (!confirm('确定要删除这条股票记录吗？')) return;
+
+            try {
+                const response = await supabaseFetch(`stocks?id=eq.${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                showAlert('删除成功！', 'success');
+                loadStocks();
+            } catch (error) {
+                showAlert('删除失败: ' + error.message, 'error');
+                console.error('Delete error:', error);
+            }
+        }
+
+        // 显示More弹窗
+        async function showMoreModal(stockId, stockName) {
+            document.getElementById('moreModalTitle').textContent = `${stockName} - 详情信息`;
+            document.getElementById('moreModal').classList.add('active');
+
+            // 加载现有内容
+            try {
+                const response = await supabaseFetch(`stocks?id=eq.${stockId}&select=more`, {
+                    method: 'GET'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                if (data && data.length > 0) {
+                    const editor = document.getElementById('moreContentEditor');
+                    editor.innerHTML = data[0].more || '';
+                    window.currentMoreStockId = stockId;
+                }
+            } catch (error) {
+                console.error('加载详情信息失败:', error);
+                document.getElementById('moreContentEditor').innerHTML = '';
+            }
+        }
+
+        // 关闭More弹窗
+        function closeMoreModal() {
+            document.getElementById('moreModal').classList.remove('active');
+            window.currentMoreStockId = null;
+        }
+
+        // 保存More内容
+        async function saveMoreContent() {
+            const stockId = window.currentMoreStockId;
+            if (!stockId) {
+                showAlert('保存失败: 无效的股票ID', 'error');
+                return;
+            }
+
+            const moreContent = document.getElementById('moreContentEditor').innerHTML;
+
+            try {
+                const response = await supabaseFetch(`stocks?id=eq.${stockId}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ more: moreContent }),
+                    headers: { 'Prefer': 'return=minimal' }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                showAlert('保存成功！', 'success');
+                closeMoreModal();
+            } catch (error) {
+                showAlert('保存失败: ' + error.message, 'error');
+                console.error('Save more content error:', error);
+            }
+        }
+
+        // 富文本编辑器工具栏功能
+        function formatText(command) {
+            document.execCommand(command, false, null);
+            document.getElementById('moreContentEditor').focus();
+        }
+
+        // 设置字体颜色
+        function setForeColor(color) {
+            document.execCommand('foreColor', false, color);
+            document.getElementById('moreContentEditor').focus();
+        }
+
+        // 全局搜索功能 - 点击按钮搜索
+        function doSearch() {
+            const keyword = document.getElementById('globalSearch').value.trim();
+            const searchResults = document.getElementById('searchResults');
+            const rows = document.querySelectorAll('#stockTableBody tr');
+
+            if (!keyword) {
+                searchResults.style.display = 'none';
+                return;
+            }
+
+            const lowerKeyword = keyword.toLowerCase();
+            let matchedStocks = [];
+
+            rows.forEach((row, index) => {
+                const cells = row.querySelectorAll('td');
+                const stockName = cells[0]?.textContent?.trim() || '';
+                const stockCode = cells[1]?.textContent?.trim() || '';
+                const stockNotes = cells[0]?.querySelector('.stock-notes')?.textContent?.trim() || '';
+                const stockId = row.getAttribute('data-index');
+
+                if (stockName.toLowerCase().includes(lowerKeyword) ||
+                    stockCode.toLowerCase().includes(lowerKeyword) ||
+                    stockNotes.toLowerCase().includes(lowerKeyword)) {
+
+                    matchedStocks.push({
+                        id: stockId,
+                        name: stockName,
+                        code: stockCode,
+                        notes: stockNotes,
+                        rowIndex: index
+                    });
+                }
+            });
+
+            // 显示搜索结果列表
+            if (matchedStocks.length > 0) {
+                searchResults.innerHTML = matchedStocks.map((stock, i) => `
+                    <div class="search-result-item" onclick="scrollToStock(${stock.rowIndex})">
+                        <span class="search-result-name">${stock.name}</span>
+                        <span class="search-result-code">${stock.code}</span>
+                        ${stock.notes ? `<div class="search-result-notes">${stock.notes}</div>` : ''}
+                    </div>
+                `).join('');
+                searchResults.style.display = 'block';
+            } else {
+                searchResults.innerHTML = '<div class="search-result-item" style="color:#888;">未找到匹配结果</div>';
+                searchResults.style.display = 'block';
+            }
+        }
+
+        // 滚动到指定股票行
+        function scrollToStock(rowIndex) {
+            const rows = document.querySelectorAll('#stockTableBody tr');
+            console.log('scrollToStock called with rowIndex:', rowIndex, 'total rows:', rows.length);
+
+            // 清除之前的定时器
+            if (window.highlightedStockTimer) {
+                clearTimeout(window.highlightedStockTimer);
+                window.highlightedStockTimer = null;
+                console.log('Cleared previous indicator timer');
+            }
+
+            if (rows[rowIndex]) {
+                // 获取目标行的股票代码
+                const targetCode = rows[rowIndex].dataset.code;
+                console.log('Target stock code:', targetCode);
+
+                // 先移除所有行的箭头指示和高亮类
+                rows.forEach(row => {
+                    row.classList.remove('search-matched');
+                    const existingArrow = row.querySelector('.arrow-indicator');
+                    if (existingArrow) {
+                        existingArrow.remove();
+                    }
+                });
+
+                // 滚动到目标行
+                rows[rowIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                // 使用requestAnimationFrame确保DOM更新后再添加箭头指示
+                requestAnimationFrame(() => {
+                    // 添加搜索匹配类
+                    rows[rowIndex].classList.add('search-matched');
+                    
+                    // 在股票名称前添加箭头
+                    const stockNameLink = rows[rowIndex].querySelector('.stock-name-link');
+                    if (stockNameLink) {
+                        const arrow = document.createElement('span');
+                        arrow.className = 'arrow-indicator';
+                        arrow.innerHTML = '➜ ';
+                        stockNameLink.parentElement.insertBefore(arrow, stockNameLink);
+                        console.log('Added arrow indicator to row:', rowIndex);
+                    }
+                });
+
+                // 保存指示状态
+                window.highlightedStock = {
+                    code: targetCode,
+                    expiresAt: Date.now() + 10000
+                };
+                console.log('Saved highlighted stock:', window.highlightedStock);
+
+                // 10秒后移除箭头指示
+                window.highlightedStockTimer = setTimeout(() => {
+                    // 清除保存的信息
+                    window.highlightedStock = null;
+                    window.highlightedStockTimer = null;
+                    
+                    // 移除所有行的高亮类
+                    document.querySelectorAll('#stockTableBody tr.search-matched').forEach(row => {
+                        row.classList.remove('search-matched');
+                        const arrow = row.querySelector('.arrow-indicator');
+                        if (arrow) {
+                            arrow.remove();
+                        }
+                    });
+                    console.log('Removed arrow indicator after 10 seconds');
+                }, 10000);
+
+                // 隐藏搜索结果
+                document.getElementById('searchResults').style.display = 'none';
+            } else {
+                console.error('Invalid rowIndex:', rowIndex, 'Max index:', rows.length - 1);
+            }
+        }
+
+        // 高亮文本
+        function highlightText(text, keyword) {
+            if (!keyword) return text;
+            const regex = new RegExp(`(${keyword})`, 'gi');
+            return text.replace(regex, '<span class="search-highlight">$1</span>');
+        }
+
+        // 支持回车键搜索
+        document.getElementById('globalSearch').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                doSearch();
+            }
+        });
+
+        // 点击页面其他地方关闭搜索结果
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.global-search')) {
+                document.getElementById('searchResults').style.display = 'none';
+            }
+        });
+
+        // 退出登录
+        function logout() {
+            if (confirm('确定要退出当前账号吗？')) {
+                // 关闭实时订阅
+                disableRealtimeSubscription();
+                localStorage.removeItem('supabase_url');
+                localStorage.removeItem('supabase_key');
+                window.location.href = 'login.html';
+            }
+        }
+
+        // 切换实时订阅
+        let isRealtimeEnabled = false;
+        async function toggleRealtime() {
+            const toggle = document.getElementById('realtimeToggle');
+            const label = document.getElementById('realtimeLabel');
+
+            if (isRealtimeEnabled) {
+                // 关闭实时订阅
+                disableRealtimeSubscription();
+                isRealtimeEnabled = false;
+                toggle.classList.remove('active');
+                label.textContent = '实时订阅';
+                showAlert('实时订阅已关闭', 'success');
+            } else {
+                // 开启实时订阅
+                toggle.classList.add('active');
+                label.textContent = '连接中...';
+                try {
+                    await enableRealtimeSubscription();
+                    isRealtimeEnabled = true;
+                    label.textContent = '实时订阅';
+                } catch (error) {
+                    toggle.classList.remove('active');
+                    label.textContent = '实时订阅';
+                    showAlert('开启实时订阅失败', 'error');
+                }
+            }
+        }
+
+        // 绑定股票名称和代码的联动事件
+        function bindStockEvents() {
+            const stockNameInput = document.getElementById('stockName');
+            const stockCodeInput = document.getElementById('stockCode');
+
+            // 初始化抑制标志
+            window._suppressStockEvents = false;
+            let _stockLookupTimer = null;
+
+            // 股票名称：失焦或按回车后触发查询
+            stockNameInput.addEventListener('blur', function() {
+                if (window._suppressStockEvents) return;
+                const name = this.value.trim();
+                const code = stockCodeInput.value.trim();
+                if (name && !code) {
+                    stockNameLookup(name);
+                }
+            });
+
+            stockNameInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const name = this.value.trim();
+                    if (name) stockNameLookup(name);
+                }
+            });
+
+            // 股票代码：输入6位后自动触发（带延迟），失焦时也触发
+            stockCodeInput.addEventListener('input', function() {
+                if (window._suppressStockEvents) return;
+                clearTimeout(_stockLookupTimer);
+                const code = this.value.trim();
+                if (/^\d{6}$/.test(code)) {
+                    _stockLookupTimer = setTimeout(() => stockCodeLookup(code), 600);
+                }
+            });
+
+            stockCodeInput.addEventListener('blur', function() {
+                if (window._suppressStockEvents) return;
+                const code = this.value.trim();
+                const name = stockNameInput.value.trim();
+                if (code && /^\d{6}$/.test(code) && !name) {
+                    stockCodeLookup(code);
+                }
+            });
+        }
+
+        // 回到顶部功能
+        function scrollToTop() {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        }
+
+        // 监听滚动事件,控制回到顶部按钮的显示
+        window.addEventListener('scroll', function() {
+            const backToTopBtn = document.getElementById('backToTop');
+            if (backToTopBtn) {
+                if (window.pageYOffset > 300) {
+                    backToTopBtn.classList.add('show');
+                } else {
+                    backToTopBtn.classList.remove('show');
+                }
+            }
+        });
+
+        // 获取指数数据
+        function fetchIndexData() {
+            // 上证指数代码: sh000001
+            fetchSingleIndex('sh000001', 'shIndex');
+            // 创业板指代码: sz399006
+            fetchSingleIndex('sz399006', 'cybIndex');
+        }
+
+        // 获取单个指数数据
+        function fetchSingleIndex(sym, elementId) {
+            const script = document.createElement('script');
+            script.src = `https://qt.gtimg.cn/q=${sym}`;
+            script.onload = () => {
+                try {
+                    const data = window['v_' + sym];
+                    if (data) {
+                        const parts = data.split('~');
+                        const currentPrice = parseFloat(parts[3]) || 0; // 当前点位(字段4,索引3)
+                        const yesterdayPrice = parseFloat(parts[4]) || 0; // 昨收点位(字段5,索引4)
+
+                        // data[31]=涨跌额, data[32]=涨跌幅%（对普通股票和指数均适用，已验证）
+                        // 同时用 prevClose 兜底自算，两者取 API 值优先
+                        const apiChange = parseFloat(parts[31]) || (yesterdayPrice > 0 ? currentPrice - yesterdayPrice : 0);
+                        const apiChangePercent = parseFloat(parts[32]) || (yesterdayPrice > 0 ? (currentPrice - yesterdayPrice) / yesterdayPrice * 100 : 0);
+
+                        const indexElement = document.getElementById(elementId);
+                        if (indexElement) {
+                            const currentElement = indexElement.querySelector('.index-current');
+                            const statusElement = indexElement.querySelector('.index-status');
+                            const pointsElement = indexElement.querySelector('.index-points');
+                            const percentElement = indexElement.querySelector('.index-percent');
+
+                            const isUp = apiChangePercent >= 0;
+
+                            // 更新当前点位
+                            currentElement.textContent = currentPrice.toFixed(2);
+                            currentElement.className = 'index-current ' + (isUp ? 'profit' : 'loss');
+
+                            // 更新状态文字(上涨/下跌)
+                            statusElement.textContent = isUp ? '上涨' : '下跌';
+                            statusElement.className = 'index-status ' + (isUp ? 'profit' : 'loss');
+
+                            // 更新涨跌点数
+                            pointsElement.textContent = (isUp ? '+' : '') + apiChange.toFixed(2);
+                            pointsElement.className = 'index-points ' + (isUp ? 'profit' : 'loss');
+
+                            // 更新涨跌幅百分比
+                            percentElement.textContent = (isUp ? '+' : '') + apiChangePercent.toFixed(2) + '%';
+                            percentElement.className = 'index-percent ' + (isUp ? 'profit' : 'loss');
+                        }
+                    }
+                } catch (e) {
+                    console.error('解析指数数据失败:', sym, e);
+                }
+            };
+            script.onerror = () => {
+                console.error('获取指数数据失败:', sym);
+            };
+            document.head.appendChild(script);
+        }
+
+        // ========== 导出数据 ==========
+        function exportStockData() {
+            const stocks = window.cachedStocks;
+            if (!stocks || stocks.length === 0) {
+                showAlert('暂无股票数据可导出', 'error');
+                return;
+            }
+            const data = {
+                exportTime: new Date().toISOString(),
+                total: stocks.length,
+                stocks: stocks.map(s => ({
+                    stock_name: s.stock_name,
+                    stock_code: s.stock_code,
+                    market: s.market,
+                    cost_price: s.cost_price,
+                    quantity: s.quantity,
+                    notes: s.notes || ''
+                }))
+            };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `股票数据_${new Date().toLocaleDateString('zh-CN').replace(/\//g, '-')}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showAlert(`已导出 ${stocks.length} 只股票数据`, 'success');
+        }
+
+        // ========== 导入数据 ==========
+        function importStockData(file) {
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    const list = Array.isArray(data) ? data : (data.stocks || []);
+                    if (!list.length) {
+                        showAlert('文件中没有可导入的股票数据', 'error');
+                        return;
+                    }
+
+                    // 验证字段格式
+                    const valid = list.every(s => s.stock_code && s.stock_name);
+                    if (!valid) {
+                        showAlert('文件格式错误：每条记录必须包含 stock_code 和 stock_name', 'error');
+                        return;
+                    }
+
+                    if (!confirm(`确认导入 ${list.length} 只股票？同一代码已存在的记录将被跳过。`)) return;
+
+                    let successCount = 0;
+                    let skipCount = 0;
+                    const existingCodes = new Set((window.cachedStocks || []).map(s => s.stock_code));
+
+                    for (const s of list) {
+                        if (existingCodes.has(s.stock_code)) {
+                            skipCount++;
+                            continue;
+                        }
+                        try {
+                            const stockData = {
+                                stock_name: s.stock_name,
+                                stock_code: s.stock_code,
+                                market: s.market || getMarketByCode(s.stock_code),
+                                cost_price: s.cost_price || 0,
+                                quantity: s.quantity || 100,
+                                notes: s.notes || ''
+                            };
+                            const resp = await supabaseFetch('stocks', {
+                                method: 'POST',
+                                body: JSON.stringify([stockData]),
+                                headers: { 'Prefer': 'return=minimal' }
+                            });
+                            if (resp.ok) {
+                                successCount++;
+                            } else {
+                                skipCount++;
+                            }
+                        } catch (err) {
+                            skipCount++;
+                        }
+                    }
+
+                    showAlert(`导入完成：成功 ${successCount} 只，跳过 ${skipCount} 只`, 'success');
+                    await loadStocks();
+                } catch (err) {
+                    showAlert('导入失败：' + err.message, 'error');
+                }
+            };
+            reader.readAsText(file);
+            // 清空 input，允许重复选同一文件
+            const fileInput = document.querySelector('input[type="file"][accept=".json"]');
+            if (fileInput) fileInput.value = '';
+        }
+
+
+        // ========== AI 分析（发送至千问） ==========
+        function analyzeWithAI() {
+            const stocks = window.cachedStocks;
+            if (!stocks || stocks.length === 0) {
+                showAlert('暂无股票数据可分析', 'error');
+                return;
+            }
+
+            let prompt = '请帮我分析以下股票持仓组合，给出总体分析和建议：\n\n';
+            prompt += `我的持仓共有 ${stocks.length} 只股票：\n\n`;
+
+            // 按盈亏率排序（如有价格数据）
+            const priceMap = window.stockPrices || {};
+            const sorted = [...stocks].sort((a, b) => {
+                const pA = priceMap[a.stock_code];
+                const pB = priceMap[b.stock_code];
+                const rA = (a.cost_price && pA) ? (pA.currentPrice - a.cost_price) / a.cost_price : 0;
+                const rB = (b.cost_price && pB) ? (pB.currentPrice - b.cost_price) / b.cost_price : 0;
+                return rB - rA;
+            });
+
+            sorted.forEach((stock, index) => {
+                const pd = priceMap[stock.stock_code];
+                const currentPrice = pd ? pd.currentPrice : null;
+                const changeRate = pd ? pd.changeRate : null;
+                const profitRate = (stock.cost_price && currentPrice)
+                    ? (((currentPrice - stock.cost_price) / stock.cost_price) * 100).toFixed(2)
+                    : '未知';
+
+                prompt += `${index + 1}. ${stock.stock_name} (${stock.stock_code})\n`;
+                prompt += `   - 所属市场: ${stock.market || '未知'}\n`;
+                prompt += `   - 成本价: ${stock.cost_price ? '¥' + stock.cost_price : '未设置'}\n`;
+                prompt += `   - 当前价: ${currentPrice ? '¥' + currentPrice.toFixed(2) : '未获取'}\n`;
+                const profitAmt = (stock.cost_price && currentPrice) ? ((currentPrice - stock.cost_price) * (stock.quantity || 100)).toFixed(2) : null;
+                prompt += `   - 持仓收益: ${profitAmt !== null ? '¥' + profitAmt : '未设置'}\n`;
+                prompt += `   - 持仓盈亏: ${profitRate}%\n`;
+                prompt += `   - 今日涨跌: ${changeRate !== null ? changeRate.toFixed(2) + '%' : '未获取'}\n`;
+                const kdj60 = window.kdj60Data?.[stock.stock_code];
+                prompt += `   - KDJ60(J值): ${kdj60 ? kdj60.j.toFixed(2) : '未获取'}\n`;
+                prompt += `   - 持仓数量: ${stock.quantity || 100} 股\n`;
+                if (stock.notes) prompt += `   - 备注: ${stock.notes}\n`;
+                prompt += '\n';
+            });
+
+            prompt += '\n请从以下几个方面进行分析：\n';
+            prompt += '1. 持仓整体盈亏情况分析\n';
+            prompt += '2. 行业/板块分布是否合理\n';
+            prompt += '3. 哪些股票表现较好，哪些需要关注\n';
+            prompt += '4. 风险控制建议\n';
+            prompt += '5. 后续操作建议\n';
+
+            navigator.clipboard.writeText(prompt).then(() => {
+                window.open('https://tongyi.aliyun.com/qianwen/', '_blank');
+                showAlert('持仓分析内容已复制到剪贴板，正在打开千问...', 'success');
+            }).catch(() => {
+                // 降级：显示 textarea 让用户手动复制
+                const modal = document.createElement('div');
+                modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+                modal.innerHTML = `
+                    <div style="background:#fff;border-radius:12px;padding:24px;max-width:600px;width:90%;max-height:80vh;overflow:auto;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                            <h3 style="font-size:16px;font-weight:600;">AI 分析内容（手动复制）</h3>
+                            <button onclick="this.closest('div[style*=fixed]').remove()" style="border:none;background:none;font-size:20px;cursor:pointer;">✕</button>
+                        </div>
+                        <textarea id="_aiPromptTextarea" style="width:100%;height:300px;border:1px solid #ddd;border-radius:8px;padding:10px;font-size:13px;resize:vertical;">${prompt.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>
+                        <div style="display:flex;gap:8px;margin-top:12px;">
+                            <button onclick="document.getElementById('_aiPromptTextarea').select();document.execCommand('copy');showAlert('已复制！','success');" 
+                                style="flex:1;background:#6366f1;color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-size:14px;">复制内容</button>
+                            <a href="https://tongyi.aliyun.com/qianwen/" target="_blank"
+                                style="flex:1;background:#a855f7;color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-size:14px;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;">打开千问</a>
+                        </div>
+                    </div>`;
+                document.body.appendChild(modal);
+                modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+            });
+        }
+    </script>
+</body>
+</html>

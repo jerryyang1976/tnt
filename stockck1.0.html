@@ -1,0 +1,2428 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>老杨的股票池</title>
+  <style>
+    :root {
+      --red:    #e03a3a;
+      --green:  #16a34a;
+      --gold:   #f59e0b;
+      --dark:   #1a1c23;
+      --panel:  #22252f;
+      --border: #3a3f4e;
+      --text:   #e2e8f0;
+      --muted:  #7a8099;
+      --accent: #3b82f6;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--dark);
+      color: var(--text);
+      font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
+      min-height: 100vh;
+      padding-bottom: 60px;
+    }
+
+    /* 连接状态栏 */
+    .db-status-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: rgba(30,35,54,.95);
+      border-bottom: 1px solid var(--border);
+      padding: 8px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      z-index: 1000;
+      font-size: 12px;
+    }
+    .db-status-bar .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    .db-status-bar .status-dot.connected { background: var(--green); }
+    .db-status-bar .status-dot.error { background: var(--red); }
+    .db-status-bar .db-url {
+      flex: 1;
+      color: var(--muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .db-status-bar .db-btn {
+      padding: 4px 10px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .db-status-bar .db-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .db-status-bar .loading { color: var(--gold); }
+    body { padding-top: 40px; }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding: 24px 16px 32px;
+      font-size: 12px;
+      color: #5a6275;
+    }
+
+    /* Header */
+    header {
+      background: linear-gradient(135deg, #0f1117 0%, #1a1f2e 60%, #0f1a2e 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 28px 24px 20px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    header::before {
+      content: "";
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 60% 80% at 50% -20%, rgba(59,130,246,.18) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .header-date { font-size: 12px; color: var(--muted); letter-spacing: 2px; margin-bottom: 8px; }
+    header h1 {
+      font-size: clamp(22px, 5vw, 36px); font-weight: 700; letter-spacing: 3px;
+      background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 40%, #e2e8f0 70%, #93c5fd 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .header-sub { margin-top: 6px; font-size: 13px; color: var(--muted); }
+    .badge {
+      display: inline-block; margin-top: 12px; padding: 3px 12px; border-radius: 20px;
+      font-size: 12px; background: rgba(59,130,246,.15); border: 1px solid rgba(59,130,246,.35);
+      color: #93c5fd; letter-spacing: 1px;
+    }
+    .badge.db-badge {
+      background: rgba(22,163,74,.15);
+      border-color: rgba(22,163,74,.35);
+      color: #4ade80;
+    }
+
+    /* Container */
+    .container { max-width: 1100px; margin: 32px auto 0; padding: 0 16px; }
+
+    /* Card */
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 24px; }
+    .card-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 18px 22px; border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,.025);
+    }
+    .card-header .icon {
+      width: 32px; height: 32px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;
+    }
+    .icon-list { background: rgba(59,130,246,.15); }
+    .card-title { font-size: 17px; font-weight: 700; letter-spacing: 1px; }
+    .card-meta { margin-left: auto; font-size: 12px; color: var(--muted); }
+    .card-body { padding: 20px 22px; }
+
+    /* 搜索栏 */
+    .search-bar {
+      display: flex; gap: 10px; margin-bottom: 16px;
+    }
+    .search-bar input {
+      flex: 1;
+      background: rgba(255,255,255,.05);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 14px;
+      padding: 10px 14px;
+      outline: none;
+      font-family: inherit;
+      transition: border-color .2s;
+    }
+    .search-bar input:focus { border-color: var(--accent); }
+    .search-bar input::placeholder { color: var(--muted); }
+    .btn-search {
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: 1px solid var(--accent);
+      background: rgba(59,130,246,.12);
+      color: var(--accent);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background .2s;
+    }
+    .btn-search:hover { background: rgba(59,130,246,.24); }
+
+    /* 搜索结果下拉 */
+    .search-results {
+      position: absolute;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      max-height: 500px;
+      overflow-y: auto;
+      z-index: 100;
+      display: none;
+      width: auto;
+      min-width: 300px;
+      margin-top: 4px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.4);
+    }
+    .search-result-item {
+      padding: 10px 14px;
+      cursor: pointer;
+      border-bottom: 1px solid rgba(42,47,62,.5);
+      transition: background .15s;
+    }
+    .search-result-item:last-child { border-bottom: none; }
+    .search-result-item:hover { background: rgba(59,130,246,.1); }
+    .search-result-name { font-weight: 600; color: var(--text); }
+    .search-result-code { color: var(--muted); font-size: 13px; margin-left: 8px; }
+    .search-result-exchange { 
+      font-size: 12px; padding: 2px 6px; border-radius: 4px; margin-left: 8px; 
+      background: rgba(255,255,255,.08); color: var(--muted);
+    }
+    .search-no-result {
+      padding: 14px;
+      text-align: center;
+      color: var(--muted);
+    }
+    .search-wrapper { position: relative; flex: 1; }
+
+    /* 添加按钮 */
+    .btn-add {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 10px 18px; border-radius: 8px; border: 1px solid var(--accent);
+      background: rgba(59,130,246,.12); color: var(--accent);
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      transition: background .2s, transform .1s;
+    }
+    .btn-add:hover { background: rgba(59,130,246,.22); transform: translateY(-1px); }
+
+    /* 批量导入按钮 */
+    .btn-import {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 10px 18px; border-radius: 8px; border: 1px solid var(--accent);
+      background: rgba(22,163,74,.12); color: #16a34a;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      transition: background .2s, transform .1s;
+    }
+    .btn-import:hover { background: rgba(22,163,74,.22); transform: translateY(-1px); }
+
+    /* 操作按钮行 */
+    .action-row {
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;
+    }
+
+    /* 表格 */
+    .table-wrap { overflow-x: auto; }
+    .data-table { width: 100%; border-collapse: collapse; font-size: 15px; }
+    .data-table thead tr { border-bottom: 1px solid var(--border); }
+    .data-table thead th {
+      padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 600;
+      color: var(--muted); letter-spacing: .8px; text-transform: uppercase; white-space: nowrap;
+    }
+    .data-table tbody tr { border-bottom: 1px solid rgba(42,47,62,.5); transition: background .15s; }
+    .data-table tbody tr:last-child { border-bottom: none; }
+    .data-table tbody tr:hover { background: rgba(59,130,246,.07); }
+    .data-table tbody tr.search-matched { background: rgba(59,130,246,.15); }
+    .data-table tbody td { padding: 14px 16px; white-space: nowrap; }
+    
+    .stock-name { font-weight: 600; color: var(--text); }
+    .stock-code { color: var(--muted); font-size: 14px; margin-left: 6px; }
+    .exchange-badge {
+      display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 13px; font-weight: 600;
+    }
+    .exchange-sh { background: rgba(224,58,58,.15); color: #f87171; }
+    .exchange-sz { background: rgba(22,163,74,.15); color: #4ade80; }
+    .exchange-cy { background: rgba(245,158,11,.15); color: #fbbf24; }
+    .concept-tag {
+      display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 13px;
+      background: rgba(59,130,246,.12); color: #93c5fd; margin-right: 4px; margin-bottom: 2px;
+    }
+    .stock-price, .stock-change { font-weight: 600; }
+    .stock-price.price-up, .stock-change.price-up { color: #e03a3a; }
+    .stock-price.price-down, .stock-change.price-down { color: #16a34a; }
+    /* KDJ60样式 */
+    .kdj60-value { font-weight: 600 !important; font-size: 13px; white-space: nowrap; }
+    .kdj-overbought { color: #e03a3a !important; }   /* J>80 超买-红色 */
+    .kdj-oversold { color: #16a34a !important; }      /* J<20 超卖-绿色 */
+    .kdj-neutral { color: #f59e0b !important; }       /* 20<=J<=80 中性-金色 */
+    /* 排序表头样式 */
+    .th-sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+    .th-sortable:hover { color: var(--accent); }
+    .sort-icon { font-size: 11px; margin-left: 2px; }
+    .sort-asc::after { content: '▲'; }
+    .sort-desc::after { content: '▼'; }
+    a.stock-name-link { color: var(--text); text-decoration: none; font-weight: 600; }
+    a.stock-name-link:hover { color: var(--accent); text-decoration: underline; }
+    a.stock-name-link:active { color: var(--text); text-decoration: none; }
+    .btn-edit {
+      padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(59,130,246,.4);
+      background: rgba(59,130,246,.1); color: #60a5fa; font-size: 12px; cursor: pointer;
+      transition: background .2s; margin-right: 4px;
+    }
+    .btn-edit:hover { background: rgba(59,130,246,.25); }
+    .btn-detail {
+      padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(245,158,11,.4);
+      background: rgba(245,158,11,.1); color: #fbbf24; font-size: 12px; cursor: pointer;
+      transition: background .2s; margin-right: 4px;
+    }
+    .btn-detail:hover { background: rgba(245,158,11,.25); }
+    .btn-delete {
+      padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(224,58,58,.4);
+      background: rgba(224,58,58,.1); color: #f87171; font-size: 12px; cursor: pointer;
+      transition: background .2s;
+    }
+    .btn-delete:hover { background: rgba(224,58,58,.25); }
+
+    /* 空状态 */
+    .empty-state {
+      display: flex; flex-direction: column; align-items: center; gap: 10px;
+      padding: 40px 20px; color: var(--muted); font-size: 14px;
+    }
+    .empty-state .empty-icon { font-size: 48px; opacity: .4; }
+
+    /* 加载中 */
+    .loading-spin { color: var(--muted); font-size: 13px; animation: spin 1s linear infinite; display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* 添加弹窗 */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.7);
+      display: none; align-items: center; justify-content: center; z-index: 2000;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+      width: 90%; max-width: 480px; padding: 24px;
+    }
+    .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+    .form-group input, .form-group select {
+      width: 100%;
+      background: rgba(255,255,255,.05); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 15px; padding: 10px 12px;
+      outline: none; font-family: inherit;
+    }
+    .form-group input:focus, .form-group select:focus { border-color: var(--accent); }
+    .form-row { display: flex; gap: 12px; }
+    .form-row .form-group { flex: 1; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+    .btn-cancel {
+      padding: 10px 18px; border-radius: 8px; border: 1px solid var(--border);
+      background: transparent; color: var(--muted); font-size: 14px; cursor: pointer;
+    }
+    .btn-cancel:hover { border-color: var(--text); color: var(--text); }
+    .btn-save {
+      padding: 10px 18px; border-radius: 8px; border: 1px solid var(--accent);
+      background: rgba(59,130,246,.12); color: var(--accent); font-size: 14px; font-weight: 600; cursor: pointer;
+    }
+    .btn-save:hover { background: rgba(59,130,246,.24); }
+
+    /* 删除确认弹窗 */
+    .confirm-text { font-size: 14px; line-height: 1.6; margin-bottom: 20px; }
+
+    /* 详情弹窗 */
+    .detail-toolbar {
+      display: flex; gap: 4px; margin-bottom: 10px; padding: 8px;
+      background: rgba(255,255,255,.05); border-radius: 6px;
+    }
+    .detail-toolbar button {
+      padding: 4px 10px; border: 1px solid var(--border); border-radius: 4px;
+      background: rgba(255,255,255,.05); color: var(--text); cursor: pointer; font-size: 13px;
+    }
+    .detail-toolbar button:hover { background: rgba(255,255,255,.1); border-color: var(--accent); }
+    .toolbar-sep { color: var(--muted); line-height: 28px; }
+    .btn-color-crimson:hover { border-color: #fde047 !important; background: rgba(253,224,71,.15) !important; }
+    .btn-color-orange:hover  { border-color: #c2410c !important; background: rgba(194,65,12,.15) !important; }
+    .btn-color-purple:hover  { border-color: #a78bfa !important; background: rgba(167,139,250,.15) !important; }
+    .detail-editor {
+      min-height: 200px; max-height: 400px; overflow-y: auto;
+
+    /* 导入弹窗样式 */
+    .import-preview-item {
+      display: flex; align-items: center; gap: 10px; padding: 8px;
+      border-bottom: 1px solid rgba(255,255,255,.1); font-size: 14px;
+    }
+    .import-preview-item:last-child { border-bottom: none; }
+    .import-preview-item.duplicate { background: rgba(245,158,11,.08); }
+    .import-preview-item.valid { background: rgba(22,163,74,.05); }
+    .import-preview-item.invalid { background: rgba(224,58,58,.05); }
+    .preview-index { width: 30px; color: var(--muted); font-size: 12px; }
+    .preview-code { flex: 1; font-family: monospace; }
+    .preview-status { font-size: 12px; }
+    .import-preview-item.duplicate .preview-status { color: #fbbf24; }
+    .import-preview-item.valid .preview-status { color: #16a34a; }
+    .import-preview-item.invalid .preview-status { color: #e03a3a; }
+    .import-status {
+      padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;
+    }
+    .import-status.info { background: rgba(59,130,246,.15); color: #93c5fd; }
+    .import-status.success { background: rgba(22,163,74,.15); color: #4ade80; }
+    .import-status.warning { background: rgba(245,158,11,.15); color: #fbbf24; }
+    .import-status.error { background: rgba(224,58,58,.15); color: #f87171; }
+      background: rgba(255,255,255,.05); border: 1px solid var(--border); border-radius: 8px;
+      padding: 12px; color: var(--text); font-size: 14px; line-height: 1.6;
+    }
+    .detail-editor:focus { outline: none; border-color: var(--accent); }
+    .detail-editor:empty:before {
+      content: attr(placeholder); color: var(--muted);
+    }
+    .detail-editor h2 { font-size: 18px; margin: 10px 0 6px; color: var(--accent); }
+    .detail-editor ul, .detail-editor ol { margin-left: 20px; }
+    .detail-editor li { margin: 4px 0; }
+
+    /* 概念筛选器 */
+    .th-filter-wrap {
+      display: inline-flex; align-items: center; gap: 5px; cursor: default;
+    }
+    .btn-filter {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 20px; height: 20px; border-radius: 4px; border: none;
+      background: transparent; cursor: pointer; font-size: 13px; line-height: 1;
+      color: var(--muted); transition: background .15s, color .15s;
+      padding: 0; flex-shrink: 0;
+    }
+    .btn-filter:hover { background: rgba(59,130,246,.2); color: var(--accent); }
+    .btn-filter.active { background: rgba(59,130,246,.25); color: var(--accent); }
+
+    .concept-dropdown {
+      position: fixed;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      min-width: 180px;
+      max-width: 260px;
+      max-height: 320px;
+      z-index: 3000;
+      box-shadow: 0 8px 28px rgba(0,0,0,.55);
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .concept-dropdown.open { display: flex; }
+    .concept-dropdown-header {
+      padding: 10px 12px 8px;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px; color: var(--muted); letter-spacing: .5px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .concept-dropdown-header span { font-weight: 600; color: var(--text); }
+    .concept-dd-actions { display: flex; gap: 8px; }
+    .concept-dd-link {
+      font-size: 11px; color: var(--accent); cursor: pointer; text-decoration: none;
+    }
+    .concept-dd-link:hover { text-decoration: underline; }
+    .concept-dropdown-search {
+      padding: 8px 10px;
+      border-bottom: 1px solid rgba(58,63,78,.5);
+    }
+    .concept-dropdown-search input {
+      width: 100%; background: rgba(255,255,255,.06); border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text); font-size: 12px; padding: 5px 9px;
+      outline: none; font-family: inherit;
+    }
+    .concept-dropdown-search input:focus { border-color: var(--accent); }
+    .concept-dropdown-list {
+      overflow-y: auto; flex: 1; padding: 6px 0;
+    }
+    .concept-dd-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 12px; cursor: pointer; font-size: 13px;
+      transition: background .12s;
+    }
+    .concept-dd-item:hover { background: rgba(59,130,246,.1); }
+    .concept-dd-item input[type="checkbox"] {
+      accent-color: var(--accent); width: 14px; height: 14px; cursor: pointer; flex-shrink: 0;
+    }
+    .concept-dd-item .dd-label {
+      flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .concept-dd-item .dd-count {
+      font-size: 11px; color: var(--muted); flex-shrink: 0;
+    }
+    .concept-dd-empty {
+      padding: 16px; text-align: center; color: var(--muted); font-size: 13px;
+    }
+    .concept-dropdown-footer {
+      padding: 8px 12px;
+      border-top: 1px solid var(--border);
+      display: flex; justify-content: flex-end; gap: 8px;
+    }
+    .btn-dd-cancel {
+      padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border);
+      background: transparent; color: var(--muted); font-size: 12px; cursor: pointer;
+    }
+    .btn-dd-cancel:hover { color: var(--text); border-color: var(--text); }
+    .btn-dd-ok {
+      padding: 5px 12px; border-radius: 6px; border: 1px solid var(--accent);
+      background: rgba(59,130,246,.15); color: var(--accent); font-size: 12px; 
+      font-weight: 600; cursor: pointer;
+    }
+    .btn-dd-ok:hover { background: rgba(59,130,246,.28); }
+
+    /* 筛选激活状态提示条 */
+    .filter-active-bar {
+      display: none; align-items: center; gap: 8px; flex-wrap: wrap;
+      padding: 8px 12px; margin-bottom: 12px;
+      background: rgba(59,130,246,.08); border: 1px solid rgba(59,130,246,.25);
+      border-radius: 8px; font-size: 12px; color: var(--muted);
+    }
+    .filter-active-bar.show { display: flex; }
+    .filter-tag {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 8px; border-radius: 12px;
+      background: rgba(59,130,246,.18); color: #93c5fd; font-size: 12px;
+    }
+    .filter-tag .remove-tag {
+      cursor: pointer; font-size: 14px; line-height: 1; color: #93c5fd; opacity: .7;
+    }
+    .filter-tag .remove-tag:hover { opacity: 1; }
+    .btn-clear-all-filter {
+      margin-left: auto; padding: 2px 10px; border-radius: 6px;
+      border: 1px solid rgba(224,58,58,.4); background: rgba(224,58,58,.1);
+      color: #f87171; font-size: 12px; cursor: pointer;
+    }
+    .btn-clear-all-filter:hover { background: rgba(224,58,58,.22); }
+
+    /* 浮动返回顶部按钮 */
+    .back-to-top {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: rgba(59,130,246,.85);
+      color: #fff;
+      border: 2px solid rgba(255,255,255,.2);
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity .3s, visibility .3s, transform .3s, background .2s;
+      z-index: 9999;
+      box-shadow: 0 4px 16px rgba(0,0,0,.35);
+    }
+    .back-to-top:hover {
+      background: rgba(59,130,246,1);
+      transform: translateY(-3px);
+      box-shadow: 0 6px 20px rgba(59,130,246,.45);
+    }
+    .back-to-top.show {
+      opacity: 1;
+      visibility: visible;
+    }
+  </style>
+</head>
+<body>
+  <!-- 数据库状态栏 -->
+  <div class="db-status-bar">
+    <span class="status-dot" id="statusDot"></span>
+    <span class="db-url" id="dbUrlDisplay">正在连接...</span>
+    <button class="db-btn" onclick="window.location.href='login.html'">重新登录</button>
+    <button class="db-btn" onclick="window.location.href='index.html'" style="border-color:rgba(22,163,74,.5);color:#4ade80;">📈 持仓股票</button>
+    <button class="db-btn" onclick="window.location.href='stockfx-v2.html'" style="border-color:rgba(59,130,246,.5);color:#93c5fd;">📊 股票分析</button>
+    <button class="db-btn" onclick="window.location.href='stockcle.html'" style="border-color:rgba(245,158,11,.5);color:#fbbf24;">🗑️ 清仓股票</button>
+  </div>
+
+  <header>
+    <div class="header-date">STOCK POOL</div>
+    <h1>老杨的股票池</h1>
+    <div class="header-sub">按板块分类的股票池</div>
+    <span class="badge db-badge" id="dbBadge">数据库</span>
+  </header>
+
+  <div class="container">
+    <div class="card">
+      <div class="card-header">
+        <span class="icon icon-list">📋</span>
+        <span class="card-title">股票列表</span>
+        <span class="card-meta" id="stockCount">共 0 只</span>
+      </div>
+      <div class="card-body">
+        <!-- 操作栏 -->
+        <div class="action-row">
+          <div class="search-bar">
+            <div class="search-wrapper">
+              <input type="text" id="globalSearch" placeholder="搜索股票名称/代码/概念...">
+              <div class="search-results" id="searchResults"></div>
+            </div>
+            <button class="btn-search" onclick="doSearch()">🔍 搜索</button>
+          </div>
+          <button class="btn-add" onclick="showAddModal()">＋ 添加股票</button>
+          <button class="btn-import" onclick="showImportModal()">📥 批量导入</button>
+          <button onclick="exportStockData()" style="display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border-radius:8px;border:1px solid #3b82f6;background:rgba(59,130,246,.85);color:#fff;font-size:14px;font-weight:600;cursor:pointer;transition:background .2s,transform .1s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform=''" title="导出当前股票数据为 JSON 文件">📥 导出数据</button>
+          <label style="display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border-radius:8px;border:1px solid #22c55e;background:rgba(34,197,94,.85);color:#fff;font-size:14px;font-weight:600;cursor:pointer;transition:background .2s,transform .1s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform=''" title="从 JSON 文件导入股票数据">
+            📤 导入数据
+            <input type="file" accept=".json" style="display:none;" onchange="importStockDataJSON(this.files[0])">
+          </label>
+          <button onclick="analyzeWithAI()" style="display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border-radius:8px;border:1px solid #a855f7;background:linear-gradient(135deg,#6366f1,#a855f7);color:#fff;font-size:14px;font-weight:600;cursor:pointer;transition:background .2s,transform .1s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform=''" title="将持仓数据整理为提示词并打开 AI 分析">🤖 AI分析</button>
+        </div>
+
+        <!-- 表格 -->
+        <div class="table-wrap">
+          <!-- 筛选激活提示条 -->
+          <div class="filter-active-bar" id="filterActiveBar">
+            <span>筛选条件：</span>
+            <span id="filterTags"></span>
+            <button class="btn-clear-all-filter" onclick="clearAllFilters()">清除全部筛选</button>
+          </div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width:60px;">序号</th>
+                <th>股票名称</th>
+                <th>股票代码</th>
+                <th>交易所</th>
+                <th>当日价格</th>
+                <th class="th-sortable" onclick="toggleSort('changeRate')">涨跌幅 <span id="sortIconChangeRate" class="sort-icon sort-desc"></span></th>
+                <th class="th-sortable" onclick="toggleSort('kdj60')">KDJ60 <span id="sortIconKdj60" class="sort-icon"></span></th>
+                <th>
+                  <div class="th-filter-wrap">
+                    <span>概念1</span>
+                    <button class="btn-filter" id="filterBtn1" onclick="toggleFilterDropdown(event,'concept1')" title="筛选概念1">▼</button>
+                  </div>
+                </th>
+                <th>
+                  <div class="th-filter-wrap">
+                    <span>概念2</span>
+                    <button class="btn-filter" id="filterBtn2" onclick="toggleFilterDropdown(event,'concept2')" title="筛选概念2">▼</button>
+                  </div>
+                </th>
+                <th style="width:80px;">操作</th>
+              </tr>
+            </thead>
+            <tbody id="stockTableBody">
+              <tr>
+                <td colspan="10" style="text-align:center;padding:40px;">
+                  <span class="loading-spin">加载中...</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 空状态 -->
+        <div class="empty-state" id="emptyState" style="display:none;">
+          <div class="empty-icon">📊</div>
+          <div>暂无股票数据</div>
+          <button class="btn-add" onclick="showAddModal()">＋ 添加第一只股票</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 概念1 筛选下拉 -->
+  <div class="concept-dropdown" id="conceptDropdown1">
+    <div class="concept-dropdown-header">
+      <span>概念1 筛选</span>
+      <div class="concept-dd-actions">
+        <a class="concept-dd-link" onclick="ddSelectAll('concept1')">全选</a>
+        <a class="concept-dd-link" onclick="ddClearAll('concept1')">清空</a>
+      </div>
+    </div>
+    <div class="concept-dropdown-search">
+      <input type="text" id="ddSearch1" placeholder="搜索关键字..." oninput="ddFilterList('concept1')">
+    </div>
+    <div class="concept-dropdown-list" id="ddList1"></div>
+    <div class="concept-dropdown-footer">
+      <button class="btn-dd-cancel" onclick="closeDropdown('concept1')">取消</button>
+      <button class="btn-dd-ok" onclick="applyFilter('concept1')">确定</button>
+    </div>
+  </div>
+
+  <!-- 概念2 筛选下拉 -->
+  <div class="concept-dropdown" id="conceptDropdown2">
+    <div class="concept-dropdown-header">
+      <span>概念2 筛选</span>
+      <div class="concept-dd-actions">
+        <a class="concept-dd-link" onclick="ddSelectAll('concept2')">全选</a>
+        <a class="concept-dd-link" onclick="ddClearAll('concept2')">清空</a>
+      </div>
+    </div>
+    <div class="concept-dropdown-search">
+      <input type="text" id="ddSearch2" placeholder="搜索关键字..." oninput="ddFilterList('concept2')">
+    </div>
+    <div class="concept-dropdown-list" id="ddList2"></div>
+    <div class="concept-dropdown-footer">
+      <button class="btn-dd-cancel" onclick="closeDropdown('concept2')">取消</button>
+      <button class="btn-dd-ok" onclick="applyFilter('concept2')">确定</button>
+    </div>
+  </div>
+
+  <div class="footer">
+    本页内容仅供老杨个人复盘使用，不构成任何投资建议。股市有风险，入市须谨慎。
+  </div>
+
+  <!-- 浮动返回顶部按钮 -->
+  <button class="back-to-top" id="backToTop" onclick="scrollToTop()" title="返回顶部">↑</button>
+
+  <script src="supabase.min.js"></script>
+  <script>
+    // 全局变量
+    let supabaseUrl, supabaseKey;
+    let allStocks = [];
+    let deleteStockId = null;
+    let editStockId = null;
+    let detailStockId = null;
+
+    // HTML 转义函数
+    function escapeHtml(text) {
+      if (!text) return '';
+      return text.replace(/&/g, '&amp;')
+                 .replace(/</g, '&lt;')
+                 .replace(/>/g, '&gt;')
+                 .replace(/"/g, '&quot;')
+                 .replace(/'/g, '&#039;');
+    }
+
+    // Supabase 请求封装
+    async function supabaseFetch(endpoint, options = {}, timeoutMs = 15000) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+      
+      const url = `${supabaseUrl}/rest/v1/${endpoint}`;
+      const headers = {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+        'Prefer': options.prefer || 'return=representation'
+      };
+      
+      if (options.method === 'DELETE') {
+        headers['Prefer'] = 'return=minimal';
+      }
+      
+      try {
+        const response = await fetch(url, {
+          method: options.method || 'GET',
+          headers,
+          body: options.body ? JSON.stringify(options.body) : undefined,
+          signal: controller.signal
+        });
+        clearTimeout(timeout);
+        return response;
+      } catch (e) {
+        clearTimeout(timeout);
+        throw e;
+      }
+    }
+
+    // 更新数据库状态
+    function updateDbStatus(connected, message) {
+      const dot = document.getElementById('statusDot');
+      const badge = document.getElementById('dbBadge');
+      if (connected) {
+        dot.className = 'status-dot connected';
+        badge.textContent = '已连接';
+      } else {
+        dot.className = 'status-dot error';
+        badge.textContent = message || '未连接';
+      }
+    }
+
+    // 加载股票数据
+    async function loadStocks() {
+      try {
+        const response = await supabaseFetch('stock_pool?select=*&order=created_at.desc');
+        if (response.ok) {
+          const data = await response.json();
+          allStocks = data || [];
+          renderStocks();
+        } else {
+          console.error('加载失败:', response.status);
+        }
+      } catch (e) {
+        console.error('加载异常:', e);
+      }
+    }
+
+    // 获取股票实时价格（腾讯财经 API）- 只更新价格，不重新渲染表格
+    async function fetchStockPrices() {
+      const stocks = allStocks;
+      if (!stocks || stocks.length === 0) return;
+      
+      window.stockPrices = window.stockPrices || {};
+      
+      for (const stock of stocks) {
+        await fetchSinglePrice(stock.code);
+      }
+      
+      // 更新序号和排序
+      updateTableOrder();
+    }
+    
+    // 排序状态：field='changeRate'为默认涨跌幅排序，'kdj60'为KDJ60排序
+    window.sortConfig = { field: 'changeRate', direction: 'desc' };
+
+    // 切换排序字段和方向
+    function toggleSort(field) {
+      if (window.sortConfig.field === field) {
+        // 同一字段：切换方向
+        window.sortConfig.direction = window.sortConfig.direction === 'desc' ? 'asc' : 'desc';
+      } else {
+        // 新字段：默认从高到低
+        window.sortConfig.field = field;
+        window.sortConfig.direction = 'desc';
+      }
+      updateSortIcons();
+      updateTableOrder();
+    }
+
+    // 更新排序箭头图标
+    function updateSortIcons() {
+      // 清除所有图标
+      document.getElementById('sortIconKdj60').className = 'sort-icon';
+      document.getElementById('sortIconChangeRate').className = 'sort-icon';
+      // 设置当前排序字段图标
+      if (window.sortConfig.field === 'kdj60') {
+        document.getElementById('sortIconKdj60').className = 'sort-icon ' + (window.sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc');
+      } else if (window.sortConfig.field === 'changeRate') {
+        document.getElementById('sortIconChangeRate').className = 'sort-icon ' + (window.sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc');
+      }
+    }
+
+    // 更新表格排序和序号，不重新生成 HTML
+    function updateTableOrder() {
+      const tbody = document.getElementById('stockTableBody');
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      const priceData = window.stockPrices || {};
+      const kdj60Data = window.kdj60Data || {};
+      const dir = window.sortConfig.direction === 'asc' ? 1 : -1;
+
+      rows.sort((a, b) => {
+        const codeA = a.dataset.code;
+        const codeB = b.dataset.code;
+
+        if (window.sortConfig.field === 'kdj60') {
+          const jA = kdj60Data[codeA]?.j ?? -Infinity;
+          const jB = kdj60Data[codeB]?.j ?? -Infinity;
+          return dir * (jA - jB);
+        } else {
+          // 默认按涨跌幅排序
+          const rateA = priceData[codeA]?.changeRate || 0;
+          const rateB = priceData[codeB]?.changeRate || 0;
+          return dir * (rateA - rateB);
+        }
+      });
+      
+      // 重新排列 DOM 顺序
+      rows.forEach((row, index) => {
+        row.querySelector('td:first-child').textContent = index + 1;
+      });
+      rows.forEach(row => tbody.appendChild(row));
+    }
+
+    // 获取单个股票价格
+    function fetchSinglePrice(code) {
+      return new Promise((resolve) => {
+        let sym = code;
+        if (code.startsWith('6')) sym = 'sh' + code;
+        else if (code.startsWith('0') || code.startsWith('3')) sym = 'sz' + code;
+        
+        const script = document.createElement('script');
+        script.src = `https://qt.gtimg.cn/q=${sym}`;
+        
+        const timer = setTimeout(() => {
+          try { document.head.removeChild(script); } catch(e) {}
+          resolve();
+        }, 5000);
+        
+        script.onload = () => {
+          clearTimeout(timer);
+          try {
+            const data = window['v_' + sym];
+            if (data) {
+              const parts = data.split('~');
+              const currentPrice = parseFloat(parts[3]) || 0;
+              const changeRate = parseFloat(parts[32]) || 0;
+              
+              window.stockPrices[code] = { currentPrice, changeRate };
+              
+              // 更新表格中的价格和涨跌幅
+              const priceCell = document.querySelector(`.stock-price[data-code="${code}"]`);
+              const changeCell = document.querySelector(`.stock-change[data-code="${code}"]`);
+              
+              if (priceCell) {
+                priceCell.textContent = currentPrice > 0 ? '¥' + currentPrice.toFixed(2) : '-';
+                priceCell.className = 'stock-price ' + (currentPrice > 0 ? (changeRate >= 0 ? 'price-up' : 'price-down') : '');
+              }
+              if (changeCell) {
+                changeCell.textContent = currentPrice > 0 
+                  ? (changeRate >= 0 ? '+' : '') + changeRate.toFixed(2) + '%' 
+                  : '-';
+                changeCell.className = 'stock-change ' + (currentPrice > 0 ? (changeRate >= 0 ? 'price-up' : 'price-down') : '');
+              }
+            }
+          } catch(e) { 
+            console.error('解析股票数据失败:', code, e); 
+          }
+          try { document.head.removeChild(script); } catch(e) {}
+          resolve();
+        };
+        
+        script.onerror = () => {
+          clearTimeout(timer);
+          try { document.head.removeChild(script); } catch(e) {}
+          resolve();
+        };
+        
+        document.head.appendChild(script);
+      });
+    }
+
+    // 获取所有股票的KDJ60数据
+    async function fetchAllKDJ60() {
+      const kdjCells = document.querySelectorAll('.kdj60-value');
+      const codes = Array.from(kdjCells).map(cell => cell.dataset.code).filter(Boolean);
+      const uniqueCodes = [...new Set(codes)];
+      for (const code of uniqueCodes) {
+        await fetchKDJ60(code);
+      }
+    }
+
+    // 获取单只股票的60分钟KDJ指标（使用腾讯财经API，支持CORS直接fetch）
+    async function fetchKDJ60(code) {
+      try {
+        // 确定市场前缀：6开头=沪市(sh)，0/3开头=深市(sz)，8/4开头=北交所(bj)
+        let prefix;
+        if (code.startsWith('6')) prefix = 'sh';
+        else if (code.startsWith('0') || code.startsWith('3')) prefix = 'sz';
+        else if (code.startsWith('8') || code.startsWith('4')) prefix = 'bj';
+        else prefix = 'sh';
+
+        const symbol = prefix + code;
+        const url = `https://ifzq.gtimg.cn/appstock/app/kline/mkline?param=${symbol},m60,,100`;
+
+        const response = await fetch(url);
+        const text = await response.text();
+        const result = JSON.parse(text);
+
+        const stockData = result.data && result.data[symbol];
+        if (stockData && stockData.m60 && stockData.m60.length > 0) {
+          const klines = stockData.m60;
+          // 腾讯数据格式: [时间, 开盘, 收盘, 最高, 最低, 成交量, {}, 换手率]
+          const closes = [], highs = [], lows = [];
+
+          for (const k of klines) {
+            closes.push(parseFloat(k[2]));  // 收盘价
+            highs.push(parseFloat(k[3]));    // 最高价
+            lows.push(parseFloat(k[4]));     // 最低价
+          }
+
+          // 计算KDJ(9,3,3)
+          const n = 9;
+          let kVal = 50.0, dVal = 50.0;
+
+          for (let i = n - 1; i < closes.length; i++) {
+            let highest = -Infinity, lowest = Infinity;
+            for (let j = i - n + 1; j <= i; j++) {
+              if (highs[j] > highest) highest = highs[j];
+              if (lows[j] < lowest) lowest = lows[j];
+            }
+            const rsv = (highest === lowest) ? 50.0 : (closes[i] - lowest) / (highest - lowest) * 100;
+            kVal = 2 / 3 * kVal + 1 / 3 * rsv;
+            dVal = 2 / 3 * dVal + 1 / 3 * kVal;
+          }
+
+          const jVal = 3 * kVal - 2 * dVal;
+
+          // 存储KDJ数据
+          window.kdj60Data = window.kdj60Data || {};
+          window.kdj60Data[code] = { k: kVal, d: dVal, j: jVal };
+
+          // 更新所有该股票的KDJ单元格
+          document.querySelectorAll(`.kdj60-value[data-code="${code}"]`).forEach(cell => {
+            cell.textContent = jVal.toFixed(2);
+            cell.className = 'kdj60-value ' + (jVal > 80 ? 'kdj-overbought' : jVal < 20 ? 'kdj-oversold' : 'kdj-neutral');
+          });
+        } else {
+          document.querySelectorAll(`.kdj60-value[data-code="${code}"]`).forEach(cell => {
+            cell.textContent = '-';
+          });
+        }
+      } catch (e) {
+        console.error('获取KDJ60数据失败:', code, e);
+        document.querySelectorAll(`.kdj60-value[data-code="${code}"]`).forEach(cell => {
+          cell.textContent = '-';
+        });
+      }
+    }
+
+    // 渲染股票表格
+    function renderStocks(filteredStocks = null) {
+      let stocks = filteredStocks !== null ? filteredStocks : [...allStocks];
+      
+      // 如果是全部显示（非搜索过滤），按涨跌幅从高到低排序
+      if (filteredStocks === null && stocks.length > 0) {
+        const priceData = window.stockPrices || {};
+        stocks.sort((a, b) => {
+          const rateA = priceData[a.code]?.changeRate || 0;
+          const rateB = priceData[b.code]?.changeRate || 0;
+          return rateB - rateA; // 从高到低
+        });
+      }
+      
+      const tbody = document.getElementById('stockTableBody');
+      const emptyState = document.getElementById('emptyState');
+      const stockCount = document.getElementById('stockCount');
+
+      stockCount.textContent = `共 ${stocks.length} 只`;
+
+      if (stocks.length === 0) {
+        tbody.innerHTML = '';
+        emptyState.style.display = 'flex';
+        if (filteredStocks !== null && allStocks.length > 0) {
+          emptyState.innerHTML = '<div class="empty-icon">🔍</div><div>未找到匹配结果</div>';
+        }
+        return;
+      }
+
+      emptyState.style.display = 'none';
+      emptyState.innerHTML = '<div class="empty-icon">📊</div><div>暂无股票数据</div><button class="btn-add" onclick="showAddModal()">＋ 添加第一只股票</button>';
+
+      // 获取缓存的价格数据
+      const priceData = window.stockPrices || {};
+      
+      tbody.innerHTML = stocks.map((stock, index) => {
+        const exchangeClass = stock.exchange === '沪市' ? 'exchange-sh' : 
+                              stock.exchange === '深市' ? 'exchange-sz' : 'exchange-cy';
+        const stockPrice = priceData[stock.code] || {};
+        const currentPrice = stockPrice.currentPrice || 0;
+        const changeRate = stockPrice.changeRate || 0;
+        const priceClass = currentPrice > 0 ? (changeRate >= 0 ? 'price-up' : 'price-down') : '';
+        const changeText = currentPrice > 0 
+          ? (changeRate >= 0 ? '+' : '') + changeRate.toFixed(2) + '%' 
+          : '-';
+        
+        const marketPrefix = stock.code.startsWith('6') ? 'sh' : 'sz';
+        const safeName = escapeHtml(stock.name);
+        const safeConcept1 = escapeHtml(stock.concept1 || '');
+        const safeConcept2 = escapeHtml(stock.concept2 || '');
+        return `
+          <tr data-id="${stock.id}" data-code="${stock.code}">
+            <td>${index + 1}</td>
+            <td><a href="https://quote.eastmoney.com/${marketPrefix}${stock.code}.html" target="_blank" class="stock-name-link">${safeName}</a></td>
+            <td><span class="stock-code">${stock.code}</span></td>
+            <td><span class="exchange-badge ${exchangeClass}">${stock.exchange}</span></td>
+            <td class="stock-price ${priceClass}" data-code="${stock.code}">${currentPrice > 0 ? '¥' + currentPrice.toFixed(2) : '-'}</td>
+            <td class="stock-change ${priceClass}" data-code="${stock.code}">${changeText}</td>
+            <td class="kdj60-value" data-code="${stock.code}">-</td>
+            <td>${stock.concept1 ? `<span class="concept-tag">${safeConcept1}</span>` : '-'}</td>
+            <td>${stock.concept2 ? `<span class="concept-tag">${safeConcept2}</span>` : '-'}</td>
+            <td>
+              <button class="btn-detail" data-id="${stock.id}" data-name="${safeName}" data-detail="${escapeHtml(stock.detail || '')}">详情</button>
+              <button class="btn-edit" data-id="${stock.id}" data-name="${safeName}" data-code="${stock.code}" data-exchange="${stock.exchange}" data-concept1="${safeConcept1}" data-concept2="${safeConcept2}">编辑</button>
+              <button class="btn-delete" data-id="${stock.id}" data-name="${safeName}">删除</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+      
+      // 加载完股票后获取实时价格
+      fetchStockPrices();
+      // 获取KDJ60数据
+      fetchAllKDJ60();
+    }
+
+    // 搜索功能
+    function doSearch() {
+      const keyword = document.getElementById('globalSearch').value.trim().toLowerCase();
+      const searchResults = document.getElementById('searchResults');
+      
+      // 清除之前的高亮
+      document.querySelectorAll('.search-matched').forEach(row => row.classList.remove('search-matched'));
+
+      if (!keyword) {
+        searchResults.style.display = 'none';
+        renderStocks();
+        return;
+      }
+
+      // 过滤股票
+      const matchedStocks = allStocks.filter(stock => 
+        stock.name.toLowerCase().includes(keyword) ||
+        stock.code.toLowerCase().includes(keyword) ||
+        (stock.concept1 && stock.concept1.toLowerCase().includes(keyword)) ||
+        (stock.concept2 && stock.concept2.toLowerCase().includes(keyword))
+      );
+
+      if (matchedStocks.length === 0) {
+        searchResults.innerHTML = '<div class="search-no-result">未找到匹配结果</div>';
+        searchResults.style.display = 'block';
+        renderStocks([]);
+        return;
+      }
+
+      // 显示搜索结果列表
+      searchResults.innerHTML = matchedStocks.slice(0, 10).map((stock, i) => `
+        <div class="search-result-item" onclick="scrollToStock('${stock.id}')">
+          <span class="search-result-name">${stock.name}</span>
+          <span class="search-result-code">${stock.code}</span>
+          <span class="search-result-exchange">${stock.exchange}</span>
+        </div>
+      `).join('');
+      
+      if (matchedStocks.length > 10) {
+        searchResults.innerHTML += `<div class="search-no-result">还有 ${matchedStocks.length - 10} 条结果...</div>`;
+      }
+      
+      searchResults.style.display = 'block';
+      renderStocks(matchedStocks);
+    }
+
+    // 滚动到指定股票
+    function scrollToStock(id) {
+      document.getElementById('searchResults').style.display = 'none';
+      const row = document.querySelector(`tr[data-id="${id}"]`);
+      if (row) {
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        row.classList.add('search-matched');
+        setTimeout(() => row.classList.remove('search-matched'), 5000);
+      }
+    }
+
+    // 显示添加弹窗
+    function showAddModal() {
+      editStockId = null;
+      document.getElementById('modalTitle').textContent = '添加股票';
+      document.getElementById('stockName').value = '';
+      document.getElementById('stockCode').value = '';
+      document.getElementById('stockExchangeDisplay').value = '';
+      document.getElementById('stockConcept1').value = '';
+      document.getElementById('stockConcept2').value = '';
+      document.getElementById('stockLookupHint').textContent = '';
+      document.getElementById('addModal').classList.add('show');
+      document.getElementById('stockName').focus();
+    }
+
+    // 关闭添加弹窗
+    function closeAddModal() {
+      document.getElementById('addModal').classList.remove('show');
+      editStockId = null;
+    }
+
+    // 显示编辑弹窗
+    function showEditModal(id, name, code, exchange, concept1, concept2) {
+      editStockId = id;
+      document.getElementById('modalTitle').textContent = '编辑股票';
+      document.getElementById('stockName').value = name;
+      document.getElementById('stockCode').value = code;
+      document.getElementById('stockExchangeDisplay').value = exchange;
+      document.getElementById('stockConcept1').value = concept1 || '';
+      document.getElementById('stockConcept2').value = concept2 || '';
+      document.getElementById('stockLookupHint').textContent = '';
+      document.getElementById('addModal').classList.add('show');
+      document.getElementById('stockName').focus();
+    }
+
+    // 保存股票（新增或编辑）
+  async function saveStock() {
+      let name = document.getElementById('stockName').value.trim();
+      let code = document.getElementById('stockCode').value.trim();
+      const hint = document.getElementById('stockLookupHint');
+
+      // 两个都为空才报错
+      if (!name && !code) {
+        alert('请至少填写股票名称或代码');
+        return;
+      }
+
+      // 只有代码 → 自动查名称
+      if (code && !name) {
+        hint.textContent = '⟳ 正在获取股票名称…';
+        hint.style.color = 'var(--muted)';
+        const q = await fetchQuoteTencent(code);
+        if (q && q.name) {
+          name = q.name;
+          document.getElementById('stockName').value = name;
+          hint.textContent = `✓ 已自动获取：${name}（${code}）`;
+          hint.style.color = '#4ade80';
+        } else {
+          // 查不到也允许保存，使用代码作为名称兜底
+          name = code;
+          document.getElementById('stockName').value = name;
+          hint.textContent = '⚠️ 未能查到名称，已用代码代替';
+          hint.style.color = '#fbbf24';
+        }
+      }
+
+      // 只有名称 → 自动查代码
+      if (name && !code) {
+        hint.textContent = '⟳ 正在查询股票代码…';
+        hint.style.color = 'var(--muted)';
+        const result = await searchStockCode(name);
+        if (result && result.code) {
+          code = result.code;
+          name = result.name || name;
+          document.getElementById('stockCode').value = code;
+          document.getElementById('stockName').value = name;
+          hint.textContent = `✓ 已自动获取：${name}（${code}）`;
+          hint.style.color = '#4ade80';
+        } else {
+          alert(`未能通过「${name}」查到股票代码，请手动填写代码`);
+          return;
+        }
+      }
+
+      // 交易所：优先使用已填入的值，否则按代码推断，最终兜底 'A股'
+      let exchange = document.getElementById('stockExchangeDisplay').value.trim();
+      if (!exchange && code) exchange = getExchangeFromCode(code);
+      if (!exchange) exchange = 'A股';
+      document.getElementById('stockExchangeDisplay').value = exchange;
+
+      const concept1 = document.getElementById('stockConcept1').value.trim();
+      const concept2 = document.getElementById('stockConcept2').value.trim();
+
+      // ── 重复录入检查（新增模式下校验；编辑模式只校验其他股票是否冲突）──
+      const duplicateByCode = allStocks.find(s =>
+        s.code === code && String(s.id) !== String(editStockId)
+      );
+      const duplicateByName = allStocks.find(s =>
+        s.name === name && String(s.id) !== String(editStockId)
+      );
+
+      if (duplicateByCode && duplicateByName) {
+        alert(`⚠️ 重复录入！\n股票代码「${code}」和名称「${name}」均已存在。\n请检查后重新输入。`);
+        return;
+      }
+      if (duplicateByCode) {
+        const existing = duplicateByCode;
+        alert(`⚠️ 重复录入！\n股票代码「${code}」已存在：${existing.name}（${existing.exchange}）\n请检查后重新输入。`);
+        return;
+      }
+      if (duplicateByName) {
+        const existing = duplicateByName;
+        alert(`⚠️ 重复录入！\n股票名称「${name}」已存在：${existing.code}（${existing.exchange}）\n请检查后重新输入。`);
+        return;
+      }
+      // ── 重复检查结束 ──
+
+      try {
+        let response;
+        if (editStockId) {
+          // 编辑模式 - PUT 更新
+          response = await supabaseFetch(`stock_pool?id=eq.${editStockId}`, {
+            method: 'PATCH',
+            body: { name, code, exchange, concept1, concept2 }
+          });
+        } else {
+          // 新增模式 - POST
+          response = await supabaseFetch('stock_pool', {
+            method: 'POST',
+            body: { name, code, exchange, concept1, concept2 }
+          });
+        }
+
+        if (response.ok || response.status === 201 || response.status === 200) {
+          closeAddModal();
+          editStockId = null;
+          await loadStocks();
+        } else {
+          const error = await response.text();
+          alert('保存失败: ' + error);
+        }
+      } catch (e) {
+        alert('保存失败: ' + e.message);
+      }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       股票名称/代码联动功能
+       ═══════════════════════════════════════════════════════════════════ */
+
+    // 根据代码自动识别交易所
+    function getExchangeFromCode(code) {
+      if (/^(600|601|603|605|688|900)/.test(code)) return '沪市';
+      if (/^(000|001|002|003|200)/.test(code)) return '深市';
+      if (/^(300|301)/.test(code)) return '创业板';
+      if (/^(8|4)/.test(code)) return '北交所';
+      return 'A股';  // 兜底，确保交易所字段不为空
+    }
+
+    // 腾讯行情 API - 获取股票信息
+    function fetchQuoteTencent(code) {
+      return new Promise((resolve) => {
+        const prefix = getMarketPrefix(code);
+        const sym = prefix + code;
+        const script = document.createElement("script");
+        const timer = setTimeout(() => {
+          try { document.body.removeChild(script); } catch(e) {}
+          resolve(null);
+        }, 6000);
+        
+        script.src = `https://qt.gtimg.cn/q=${sym}`;
+        script.onload = () => {
+          clearTimeout(timer);
+          const varName = "v_" + sym;
+          try {
+            const raw = window[varName];
+            if (raw) {
+              const parts = raw.split("~");
+              const name = parts[1] || "";
+              const price = parseFloat(parts[3]) || 0;
+              resolve({ name, price });
+            } else {
+              resolve(null);
+            }
+          } catch(e) { 
+            resolve(null); 
+          }
+          try { delete window[varName]; } catch(e) {}
+          try { document.body.removeChild(script); } catch(e) {}
+        };
+        script.onerror = () => {
+          clearTimeout(timer);
+          try { document.body.removeChild(script); } catch(e) {}
+          resolve(null);
+        };
+        document.body.appendChild(script);
+      });
+    }
+
+    // 获取市场前缀
+    function getMarketPrefix(code) {
+      if (/^(600|601|603|605|688|900)/.test(code)) return "sh";
+      return "sz";
+    }
+
+    // 东方财富搜索 API - 通过名称搜索代码
+    function searchStockCode(name) {
+      return new Promise((resolve) => {
+        const cb = 'search_' + Date.now();
+        const script = document.createElement('script');
+        script.src = `https://searchapi.eastmoney.com/api/suggest/get?input=${encodeURIComponent(name)}&type=14&token=D43BF722C8E33BDC906FB84D85E326284&count=5&cb=${cb}`;
+        const timer = setTimeout(() => { resolve(null); try { delete window[cb]; document.body.removeChild(script); } catch(e) {} }, 5000);
+        
+        window[cb] = (data) => {
+          clearTimeout(timer);
+          const items = data && data.QuotationCodeTable && data.QuotationCodeTable.Data;
+          if (items && items.length > 0) {
+            const item = items[0];
+            resolve({ code: item.Code, name: item.Name });
+          } else {
+            resolve(null);
+          }
+          try { delete window[cb]; } catch(e) {}
+          try { document.body.removeChild(script); } catch(e) {}
+        };
+        
+        script.onerror = () => {
+          clearTimeout(timer);
+          try { document.body.removeChild(script); } catch(e) {}
+          resolve(null);
+        };
+        
+        document.body.appendChild(script);
+      });
+    }
+
+    // 注册弹窗表单输入框事件（需在 DOMContentLoaded 后调用，因为弹窗 HTML 在 script 之后）
+    function bindModalInputEvents() {
+      const stockNameEl = document.getElementById('stockName');
+      const stockCodeEl = document.getElementById('stockCode');
+      if (!stockNameEl || !stockCodeEl) return;
+
+      // 股票名称输入 - 按回车确认后查询代码
+      stockNameEl.addEventListener('keydown', async function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const name = this.value.trim();
+          const codeInput = document.getElementById('stockCode');
+          const exchangeDisplay = document.getElementById('stockExchangeDisplay');
+          const hint = document.getElementById('stockLookupHint');
+          
+          if (!name) {
+            hint.textContent = '请输入股票名称';
+            hint.style.color = '#f87171';
+            return;
+          }
+          
+          hint.textContent = '⟳ 正在查询代码…';
+          hint.style.color = 'var(--muted)';
+          const result = await searchStockCode(name);
+          if (!result || !result.code) {
+            hint.textContent = `未找到"${name}"的代码`;
+            hint.style.color = '#f87171';
+            return;
+          }
+          codeInput.value = result.code;
+          this.value = result.name;
+          const exchange = getExchangeFromCode(result.code);
+          exchangeDisplay.value = exchange;
+          hint.textContent = `✓ ${result.name}（${result.code}）- ${exchange}`;
+          hint.style.color = '#4ade80';
+        }
+      });
+      
+      // 股票名称输入框失焦提示
+      stockNameEl.addEventListener('blur', function() {
+        const name = this.value.trim();
+        const hint = document.getElementById('stockLookupHint');
+        if (name && hint.textContent === '') {
+          hint.textContent = '⚠️ 请输入股票名称后按回车确认查询';
+          hint.style.color = '#fbbf24';
+        }
+      });
+
+      // 股票代码输入 - 按回车确认后查询股票信息
+      stockCodeEl.addEventListener('keydown', async function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const code = this.value.trim();
+          const nameInput = document.getElementById('stockName');
+          const exchangeDisplay = document.getElementById('stockExchangeDisplay');
+          const hint = document.getElementById('stockLookupHint');
+          
+          // 验证股票代码格式
+          if (!/^\d{6}$/.test(code)) {
+            hint.textContent = '请输入6位数字的股票代码';
+            hint.style.color = '#f87171';
+            return;
+          }
+          
+          hint.textContent = '⟳ 正在获取股票信息…';
+          hint.style.color = 'var(--muted)';
+          
+          // 自动识别交易所
+          const exchange = getExchangeFromCode(code);
+          exchangeDisplay.value = exchange;
+          
+          const q = await fetchQuoteTencent(code);
+          if (!q || !q.name) {
+            hint.textContent = `未能获取代码 ${code} 的信息`;
+            hint.style.color = '#f87171';
+            return;
+          }
+          
+          nameInput.value = q.name;
+          hint.textContent = `✓ ${q.name}（${code}）- ${exchange}`;
+          hint.style.color = '#4ade80';
+        }
+      });
+      
+      // 股票代码输入框失焦提示
+      stockCodeEl.addEventListener('blur', function() {
+        const code = this.value.trim();
+        const hint = document.getElementById('stockLookupHint');
+        if (code && !/^\d{6}$/.test(code) && hint.textContent === '') {
+          hint.textContent = '⚠️ 请输入6位股票代码后按回车确认查询';
+          hint.style.color = '#fbbf24';
+        }
+      });
+    }
+
+    // 显示删除确认弹窗
+    function showDeleteModal(id, name) {
+      deleteStockId = id;
+      document.getElementById('deleteStockName').textContent = `${name}`;
+      document.getElementById('deleteModal').classList.add('show');
+    }
+
+    // 关闭删除弹窗
+    function closeDeleteModal() {
+      document.getElementById('deleteModal').classList.remove('show');
+      deleteStockId = null;
+    }
+
+    // 确认删除
+    async function confirmDelete() {
+      if (!deleteStockId) return;
+
+      try {
+        const response = await supabaseFetch(`stock_pool?id=eq.${deleteStockId}`, { method: 'DELETE' });
+        
+        if (response.ok) {
+          closeDeleteModal();
+          await loadStocks();
+        } else {
+          const error = await response.text();
+          alert('删除失败: ' + error);
+        }
+      } catch (e) {
+        alert('删除失败: ' + e.message);
+      }
+    }
+
+    // 显示详情弹窗
+    function showDetailModal(id, name, detail) {
+      detailStockId = id;
+      document.getElementById('detailStockName').textContent = name;
+      document.getElementById('detailEditor').innerHTML = detail || '';
+      document.getElementById('detailModal').classList.add('show');
+    }
+
+    // 关闭详情弹窗
+    function closeDetailModal() {
+      document.getElementById('detailModal').classList.remove('show');
+      detailStockId = null;
+    }
+
+    // 格式化文本（富文本编辑器）
+    function formatText(command) {
+      const editor = document.getElementById('detailEditor');
+      editor.focus();
+      
+      if (command === 'h2') {
+        document.execCommand('formatBlock', false, '<h2>');
+      } else if (command === 'color-crimson') {
+        document.execCommand('foreColor', false, '#fde047');
+      } else if (command === 'color-orange') {
+        document.execCommand('foreColor', false, '#c2410c');
+      } else if (command === 'color-purple') {
+        document.execCommand('foreColor', false, '#a78bfa');
+      } else {
+        document.execCommand(command, false, null);
+      }
+    }
+
+    // 保存详情
+    async function saveDetail() {
+      if (!detailStockId) return;
+      
+      const detail = document.getElementById('detailEditor').innerHTML;
+      
+      try {
+        const response = await supabaseFetch(`stock_pool?id=eq.${detailStockId}`, {
+          method: 'PATCH',
+          body: { detail }
+        });
+
+        if (response.ok || response.status === 200) {
+          // 更新本地 allStocks 数据（用 == 避免字符串/数字类型不匹配）
+          const stock = allStocks.find(s => String(s.id) === String(detailStockId));
+          if (stock) stock.detail = detail;
+          
+          // 同步更新表格中对应按钮的 data-detail 属性，确保下次点击详情时读到新内容
+          const detailBtn = document.querySelector(`.btn-detail[data-id="${detailStockId}"]`);
+          if (detailBtn) detailBtn.dataset.detail = detail;
+          
+          closeDetailModal();
+          alert('保存成功！');
+        } else {
+          const error = await response.text();
+          alert('保存失败: ' + error);
+        }
+      } catch (e) {
+        alert('保存失败: ' + e.message);
+      }
+    }
+
+    // 初始化
+    async function init() {
+      // 检查 Supabase 连接配置
+      supabaseUrl = localStorage.getItem('supabase_url');
+      supabaseKey = localStorage.getItem('supabase_key');
+      
+      if (!supabaseUrl || !supabaseKey) {
+        updateDbStatus(false, '未配置数据库，请先设置');
+        document.getElementById('dbUrlDisplay').textContent = '未配置数据库连接';
+        setTimeout(() => {
+          window.location.href = 'login.html';
+        }, 3000);
+        return;
+      }
+      
+      document.getElementById('dbUrlDisplay').textContent = supabaseUrl;
+      
+      // 测试连接
+      try {
+        const response = await supabaseFetch('stock_pool?select=id&limit=1');
+        
+        if (response.ok) {
+          updateDbStatus(true, '已连接');
+          await loadStocks();
+        } else {
+          if (response.status === 404) {
+            updateDbStatus(false, '表不存在');
+            alert('数据库表不存在！\n\n请先执行 database_setup.sql 创建表：\n1. 打开 Supabase 后台\n2. SQL Editor\n3. 执行建表 SQL');
+          } else {
+            updateDbStatus(false, '连接失败: ' + response.status);
+          }
+        }
+      } catch(e) {
+        console.error('连接异常:', e);
+        updateDbStatus(false, '连接失败: ' + e.message);
+      }
+      
+      // 启动自动刷新（每5秒刷新一次股票价格）
+      setInterval(() => {
+        if (allStocks && allStocks.length > 0) {
+          fetchStockPrices();
+        }
+      }, 5000);
+
+      // 启动KDJ60自动刷新（每5分钟刷新一次）
+      setInterval(() => {
+        if (allStocks && allStocks.length > 0) {
+          fetchAllKDJ60();
+        }
+      }, 300000);
+
+      // 初始化返回顶部按钮
+      initBackToTop();
+    }
+
+    // 返回顶部按钮初始化
+    function initBackToTop() {
+      const btn = document.getElementById('backToTop');
+      if (!btn) return;
+      window.addEventListener('scroll', () => {
+        if (window.scrollY > 300) {
+          btn.classList.add('show');
+        } else {
+          btn.classList.remove('show');
+        }
+      });
+    }
+
+    // 返回顶部
+    function scrollToTop() {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // 回车搜索
+    document.getElementById('globalSearch').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        doSearch();
+      }
+    });
+
+    // 搜索框内容变化时，如果为空则恢复全部显示
+    document.getElementById('globalSearch').addEventListener('input', function() {
+      if (!this.value.trim()) {
+        document.getElementById('searchResults').style.display = 'none';
+        renderStocks();
+      }
+    });
+
+    // ESC 键取消搜索并恢复全部显示
+    document.getElementById('globalSearch').addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        this.value = '';
+        document.getElementById('searchResults').style.display = 'none';
+        renderStocks();
+      }
+    });
+
+    // 点击其他地方关闭搜索结果
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.search-wrapper')) {
+        document.getElementById('searchResults').style.display = 'none';
+      }
+    });
+
+    // 页面加载时初始化
+    window.addEventListener('DOMContentLoaded', function() {
+      init();
+      bindModalInputEvents();
+    });
+    
+    // 事件委托：处理编辑、删除和详情按钮点击
+    document.getElementById('stockTableBody').addEventListener('click', function(e) {
+      const editBtn = e.target.closest('.btn-edit');
+      const deleteBtn = e.target.closest('.btn-delete');
+      const detailBtn = e.target.closest('.btn-detail');
+      
+      if (detailBtn) {
+        e.preventDefault();
+        const id = detailBtn.dataset.id;
+        const name = detailBtn.dataset.name;
+        const detail = detailBtn.dataset.detail || '';
+        showDetailModal(id, name, detail);
+      }
+      
+      if (editBtn) {
+        e.preventDefault();
+        const id = editBtn.dataset.id;
+        const name = editBtn.dataset.name;
+        const code = editBtn.dataset.code;
+        const exchange = editBtn.dataset.exchange;
+        const concept1 = editBtn.dataset.concept1;
+        const concept2 = editBtn.dataset.concept2;
+        showEditModal(id, name, code, exchange, concept1, concept2);
+      }
+      
+      if (deleteBtn) {
+        e.preventDefault();
+        const id = deleteBtn.dataset.id;
+        const name = deleteBtn.dataset.name;
+        showDeleteModal(id, name);
+      }
+    });
+
+    /* ═══════════════════════════════════════════════════════════════════
+       概念筛选功能
+       ═══════════════════════════════════════════════════════════════════ */
+
+    // 筛选状态：{ concept1: Set<string>, concept2: Set<string> }
+    const filterState = { concept1: new Set(), concept2: new Set() };
+    // 下拉面板打开时的临时勾选状态
+    const ddTempState = { concept1: new Set(), concept2: new Set() };
+    // 下拉面板是否打开
+    let openDropdown = null;
+
+    // 获取某列所有不重复的概念关键字，及每个关键字的出现次数
+    function getConceptKeywords(field) {
+      const countMap = {};
+      allStocks.forEach(stock => {
+        const val = (stock[field] || '').trim();
+        if (val) {
+          countMap[val] = (countMap[val] || 0) + 1;
+        }
+      });
+      return Object.entries(countMap).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    }
+
+    // 打开/关闭下拉面板
+    function toggleFilterDropdown(event, field) {
+      event.stopPropagation();
+      const num = field === 'concept1' ? '1' : '2';
+      const dropdown = document.getElementById('conceptDropdown' + num);
+
+      // 如果已经有其他下拉打开，先关掉
+      if (openDropdown && openDropdown !== field) {
+        closeDropdown(openDropdown);
+      }
+
+      if (dropdown.classList.contains('open')) {
+        closeDropdown(field);
+        return;
+      }
+
+      // 将临时状态初始化为当前已选状态
+      ddTempState[field] = new Set(filterState[field]);
+
+      // 定位下拉到按钮下方
+      const btn = document.getElementById('filterBtn' + num);
+      const rect = btn.getBoundingClientRect();
+      dropdown.style.top = (rect.bottom + 6) + 'px';
+      dropdown.style.left = Math.min(rect.left, window.innerWidth - 270) + 'px';
+
+      // 清空搜索框
+      document.getElementById('ddSearch' + num).value = '';
+
+      // 渲染列表
+      renderDdList(field, '');
+      dropdown.classList.add('open');
+      openDropdown = field;
+
+      // 聚焦搜索框
+      setTimeout(() => document.getElementById('ddSearch' + num).focus(), 50);
+    }
+
+    // 关闭下拉
+    function closeDropdown(field) {
+      const num = field === 'concept1' ? '1' : '2';
+      document.getElementById('conceptDropdown' + num).classList.remove('open');
+      if (openDropdown === field) openDropdown = null;
+    }
+
+    // 渲染下拉列表（支持内部搜索过滤）
+    function renderDdList(field, searchText) {
+      const num = field === 'concept1' ? '1' : '2';
+      const listEl = document.getElementById('ddList' + num);
+      const keywords = getConceptKeywords(field);
+      const q = searchText.trim().toLowerCase();
+      const filtered = q ? keywords.filter(([k]) => k.toLowerCase().includes(q)) : keywords;
+
+      if (filtered.length === 0) {
+        listEl.innerHTML = '<div class="concept-dd-empty">无匹配项</div>';
+        return;
+      }
+
+      listEl.innerHTML = filtered.map(([kw, count]) => {
+        const checked = ddTempState[field].has(kw) ? 'checked' : '';
+        const safeKw = escapeHtml(kw);
+        return `
+          <label class="concept-dd-item">
+            <input type="checkbox" ${checked} onchange="ddToggleItem('${field}', this, '${safeKw}')">
+            <span class="dd-label" title="${safeKw}">${safeKw}</span>
+            <span class="dd-count">${count}</span>
+          </label>`;
+      }).join('');
+    }
+
+    // 下拉内部搜索过滤
+    function ddFilterList(field) {
+      const num = field === 'concept1' ? '1' : '2';
+      const q = document.getElementById('ddSearch' + num).value;
+      renderDdList(field, q);
+    }
+
+    // 勾选/取消勾选某个关键字（修改临时状态）
+    function ddToggleItem(field, checkbox, kw) {
+      if (checkbox.checked) {
+        ddTempState[field].add(kw);
+      } else {
+        ddTempState[field].delete(kw);
+      }
+    }
+
+    // 全选（临时状态）
+    function ddSelectAll(field) {
+      const keywords = getConceptKeywords(field);
+      keywords.forEach(([kw]) => ddTempState[field].add(kw));
+      const num = field === 'concept1' ? '1' : '2';
+      const q = document.getElementById('ddSearch' + num).value;
+      renderDdList(field, q);
+    }
+
+    // 清空（临时状态）
+    function ddClearAll(field) {
+      ddTempState[field].clear();
+      const num = field === 'concept1' ? '1' : '2';
+      const q = document.getElementById('ddSearch' + num).value;
+      renderDdList(field, q);
+    }
+
+    // 应用筛选（确定按钮）
+    function applyFilter(field) {
+      filterState[field] = new Set(ddTempState[field]);
+      closeDropdown(field);
+      applyAllFilters();
+      updateFilterBtnState(field);
+      updateFilterActiveBar();
+    }
+
+    // 根据两列筛选条件过滤股票并渲染
+    function applyAllFilters() {
+      const c1 = filterState.concept1;
+      const c2 = filterState.concept2;
+
+      let result = allStocks;
+      if (c1.size > 0) {
+        result = result.filter(s => c1.has((s.concept1 || '').trim()));
+      }
+      if (c2.size > 0) {
+        result = result.filter(s => c2.has((s.concept2 || '').trim()));
+      }
+      renderStocks(c1.size === 0 && c2.size === 0 ? null : result);
+    }
+
+    // 更新筛选按钮激活状态
+    function updateFilterBtnState(field) {
+      const num = field === 'concept1' ? '1' : '2';
+      const btn = document.getElementById('filterBtn' + num);
+      if (filterState[field].size > 0) {
+        btn.classList.add('active');
+        btn.textContent = '▼';
+      } else {
+        btn.classList.remove('active');
+        btn.textContent = '▼';
+      }
+    }
+
+    // 更新激活提示条
+    function updateFilterActiveBar() {
+      const bar = document.getElementById('filterActiveBar');
+      const tagsEl = document.getElementById('filterTags');
+      const allSelected = [...filterState.concept1].map(k => ({ field: 'concept1', label: '概念1: ' + k, key: k }))
+        .concat([...filterState.concept2].map(k => ({ field: 'concept2', label: '概念2: ' + k, key: k })));
+
+      if (allSelected.length === 0) {
+        bar.classList.remove('show');
+        return;
+      }
+      bar.classList.add('show');
+      tagsEl.innerHTML = allSelected.map(item => `
+        <span class="filter-tag">
+          ${escapeHtml(item.label)}
+          <span class="remove-tag" onclick="removeSingleFilter('${item.field}','${escapeHtml(item.key)}')" title="移除">×</span>
+        </span>`).join('');
+    }
+
+    // 移除单个筛选条件
+    function removeSingleFilter(field, key) {
+      filterState[field].delete(key);
+      updateFilterBtnState(field);
+      applyAllFilters();
+      updateFilterActiveBar();
+    }
+
+    // 清除所有筛选
+    function clearAllFilters() {
+      filterState.concept1.clear();
+      filterState.concept2.clear();
+      updateFilterBtnState('concept1');
+      updateFilterBtnState('concept2');
+      renderStocks(null);
+      updateFilterActiveBar();
+    }
+
+    // 点击空白处关闭下拉
+    document.addEventListener('click', function(e) {
+      if (openDropdown) {
+        const num = openDropdown === 'concept1' ? '1' : '2';
+        const dropdown = document.getElementById('conceptDropdown' + num);
+        const btn = document.getElementById('filterBtn' + num);
+        if (!dropdown.contains(e.target) && e.target !== btn) {
+          closeDropdown(openDropdown);
+        }
+      }
+    });
+
+    /* ═══════════════════════════════════════════════════════════════════
+       批量导入功能
+       ═══════════════════════════════════════════════════════════════════ */
+
+    // 显示批量导入弹窗
+    function showImportModal() {
+      document.getElementById('importModal').classList.add('show');
+      document.getElementById('importContent').textContent = '';
+      document.getElementById('importFile').value = '';
+      document.getElementById('importPreview').innerHTML = '';
+      document.getElementById('importStatus').textContent = '';
+      document.getElementById('importStatus').className = 'import-status';
+      document.getElementById('importProgress').style.width = '0%';
+    }
+
+    // 关闭批量导入弹窗
+    function closeImportModal() {
+      document.getElementById('importModal').classList.remove('show');
+    }
+
+    // 处理文件选择
+    function handleFileSelect(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const content = e.target.result;
+        document.getElementById('importContent').textContent = content;
+        previewImportData(content);
+      };
+      reader.readAsText(file);
+    }
+
+    // 预览导入数据
+    function previewImportData(content) {
+      const preview = document.getElementById('importPreview');
+      const lines = content.split('\n').map(line => line.trim()).filter(line => line);
+      const validCodes = [];
+      const invalidCodes = [];
+      const duplicateCodes = [];
+
+      // 获取已存在的股票代码集合
+      const existingCodes = new Set(allStocks.map(s => s.code));
+
+      preview.innerHTML = '';
+
+      lines.forEach((line, index) => {
+        const code = line;
+        if (/^\d{6}$/.test(code)) {
+          // 检查是否已存在
+          if (existingCodes.has(code)) {
+            duplicateCodes.push(code);
+            preview.innerHTML += `<div class="import-preview-item duplicate">
+              <span class="preview-index">${index + 1}</span>
+              <span class="preview-code">${code}</span>
+              <span class="preview-status">⏭ 已添加（将自动跳过）</span>
+            </div>`;
+          } else {
+            validCodes.push(code);
+            preview.innerHTML += `<div class="import-preview-item valid">
+              <span class="preview-index">${index + 1}</span>
+              <span class="preview-code">${code}</span>
+              <span class="preview-status">✓ 有效</span>
+            </div>`;
+          }
+        } else {
+          invalidCodes.push(code);
+          preview.innerHTML += `<div class="import-preview-item invalid">
+            <span class="preview-index">${index + 1}</span>
+            <span class="preview-code">${code}</span>
+            <span class="preview-status">✗ 无效（必须是6位数字）</span>
+          </div>`;
+        }
+      });
+
+      const status = document.getElementById('importStatus');
+      let summary = [];
+      if (validCodes.length > 0) summary.push(`${validCodes.length} 行有效`);
+      if (duplicateCodes.length > 0) summary.push(`${duplicateCodes.length} 行已添加（将跳过）`);
+      if (invalidCodes.length > 0) summary.push(`${invalidCodes.length} 行无效`);
+
+      if (validCodes.length === 0 && duplicateCodes.length === 0) {
+        status.textContent = `共 ${lines.length} 行，全部无效`;
+        status.className = 'import-status error';
+      } else if (invalidCodes.length === 0 && duplicateCodes.length === 0) {
+        status.textContent = `共 ${lines.length} 行，全部有效`;
+        status.className = 'import-status success';
+      } else {
+        status.textContent = `共 ${lines.length} 行，${summary.join('，')}，实际导入 ${validCodes.length} 行`;
+        status.className = duplicateCodes.length > 0 ? 'import-status warning' : 'import-status warning';
+      }
+    }
+
+    // 开始导入
+    async function startImport() {
+      const content = document.getElementById('importContent').textContent;
+      if (!content) {
+        alert('请先选择文件');
+        return;
+      }
+
+      // 防重复点击：检查是否正在导入
+      const importBtn = document.querySelector('[onclick="startImport()"]');
+      if (importBtn && importBtn.disabled) {
+        return;
+      }
+
+      const lines = content.split('\n').map(line => line.trim()).filter(line => line);
+      const validCodes = lines.filter(line => /^\d{6}$/.test(line));
+
+      // 获取已存在的股票代码集合
+      const existingCodes = new Set(allStocks.map(s => s.code));
+      // 过滤掉已存在的股票
+      const newCodes = validCodes.filter(code => !existingCodes.has(code));
+
+      if (newCodes.length === 0) {
+        alert('没有新的股票代码可导入（所有代码均已存在）');
+        return;
+      }
+
+      // 确认导入
+      const skippedCount = validCodes.length - newCodes.length;
+      const confirmMsg = skippedCount > 0
+        ? `共 ${validCodes.length} 只代码，其中 ${skippedCount} 只已存在将跳过，实际将导入 ${newCodes.length} 只，是否继续？`
+        : `将要导入 ${newCodes.length} 只股票，是否继续？`;
+
+      if (!confirm(confirmMsg)) {
+        return;
+      }
+
+      // 禁用导入按钮，防止重复点击
+      if (importBtn) {
+        importBtn.disabled = true;
+        importBtn.textContent = '导入中...';
+      }
+
+      const status = document.getElementById('importStatus');
+      const progress = document.getElementById('importProgress');
+      const preview = document.getElementById('importPreview');
+
+      status.textContent = '正在导入...';
+      status.className = 'import-status info';
+      progress.style.width = '0%';
+
+      let importedCount = 0;
+      let skippedCountReal = 0;
+      let failedCodes = [];
+      let totalCount = newCodes.length;
+
+      // 清空预览，显示导入进度
+      preview.innerHTML = '';
+
+      // 逐个导入，即使部分失败也继续处理其他的
+      for (let i = 0; i < newCodes.length; i++) {
+        const code = newCodes[i];
+        const percent = Math.floor((i + 1) / totalCount * 100);
+        progress.style.width = percent + '%';
+
+        // 每次循环开始时重置错误状态
+        let currentError = null;
+        let stockInfo = null;
+
+        // 第一步：获取股票信息（带重试）
+        for (let retry = 0; retry < 3; retry++) {
+          try {
+            stockInfo = await fetchQuoteTencent(code);
+            if (stockInfo && stockInfo.name) break; // 成功获取，跳出重试
+            if (retry < 2) await new Promise(r => setTimeout(r, 1000)); // 等待1秒后重试
+          } catch (e) {
+            if (retry < 2) await new Promise(r => setTimeout(r, 1000));
+          }
+        }
+
+        if (!stockInfo || !stockInfo.name) {
+          failedCodes.push(`${code}（无法获取股票信息）`);
+          preview.innerHTML += `<div class="import-preview-item invalid">
+            <span class="preview-index">${i + 1}</span>
+            <span class="preview-code">${code}</span>
+            <span class="preview-status">✗ 导入失败（无法获取股票信息）</span>
+          </div>`;
+          // 更新状态文字
+          status.textContent = `导入中... ${i + 1}/${totalCount}，已成功 ${importedCount} 只`;
+          continue;
+        }
+
+        // 第二步：保存到数据库（带重试）
+        let saved = false;
+        for (let retry = 0; retry < 3; retry++) {
+          try {
+            const exchange = getExchangeFromCode(code);
+            const stockData = {
+              name: stockInfo.name,
+              code: code,
+              exchange: exchange,
+              concept1: '',
+              concept2: ''
+            };
+
+            const response = await supabaseFetch('stock_pool', {
+              method: 'POST',
+              body: stockData
+            });
+
+            if (response.ok) {
+              saved = true;
+              break; // 成功，跳出重试
+            }
+            // 非成功响应，重试
+            if (retry < 2) await new Promise(r => setTimeout(r, 1000));
+          } catch (e) {
+            // 网络错误，重试
+            if (retry < 2) await new Promise(r => setTimeout(r, 1000));
+          }
+        }
+
+        if (saved) {
+          importedCount++;
+          preview.innerHTML += `<div class="import-preview-item valid">
+            <span class="preview-index">${i + 1}</span>
+            <span class="preview-code">${code}</span>
+            <span class="preview-status">✓ 导入成功</span>
+          </div>`;
+        } else {
+          failedCodes.push(`${code}（数据库保存失败）`);
+          preview.innerHTML += `<div class="import-preview-item invalid">
+            <span class="preview-index">${i + 1}</span>
+            <span class="preview-code">${code}</span>
+            <span class="preview-status">✗ 导入失败（数据库保存失败）</span>
+          </div>`;
+        }
+
+        // 更新状态文字
+        status.textContent = `导入中... ${i + 1}/${totalCount}，已成功 ${importedCount} 只`;
+      }
+
+      // 完成导入
+      progress.style.width = '100%';
+
+      // 恢复导入按钮
+      if (importBtn) {
+        importBtn.disabled = false;
+        importBtn.textContent = '开始导入';
+      }
+
+      const summaryParts = [];
+      if (importedCount > 0) summaryParts.push(`成功导入 ${importedCount} 只`);
+      if (skippedCount > 0) summaryParts.push(`跳过 ${skippedCount} 只已存在`);
+      if (failedCodes.length > 0) summaryParts.push(`失败 ${failedCodes.length} 只`);
+
+      if (failedCodes.length === 0) {
+        status.textContent = `导入完成！${summaryParts.join('，')}`;
+        status.className = 'import-status success';
+        alert(`导入完成！${summaryParts.join('，')}`);
+        // 重新加载股票列表
+        await loadStocks();
+        closeImportModal();
+      } else {
+        status.textContent = `导入完成！${summaryParts.join('，')}`;
+        status.className = 'import-status warning';
+        alert(`导入完成！${summaryParts.join('，')}`);
+      }
+    }
+
+    // ========== Toast 提示 ==========
+    function showToast(msg, type = 'success') {
+      const toast = document.createElement('div');
+      const color = type === 'error' ? '#e03a3a' : (type === 'warning' ? '#f59e0b' : '#16a34a');
+      toast.style.cssText = `position:fixed;bottom:32px;right:32px;background:${color};color:#fff;padding:12px 20px;border-radius:10px;font-size:14px;font-weight:600;z-index:99999;box-shadow:0 4px 16px rgba(0,0,0,.4);max-width:360px;word-break:break-all;`;
+      toast.textContent = msg;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3500);
+    }
+
+    // ========== 导出数据 ==========
+    function exportStockData() {
+      const stocks = allStocks;
+      if (!stocks || stocks.length === 0) {
+        showToast('暂无股票数据可导出', 'error');
+        return;
+      }
+      const data = {
+        exportTime: new Date().toISOString(),
+        total: stocks.length,
+        stocks: stocks.map(s => ({
+          name: s.name,
+          code: s.code,
+          exchange: s.exchange,
+          concept1: s.concept1 || '',
+          concept2: s.concept2 || ''
+        }))
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `股票池数据_${new Date().toLocaleDateString('zh-CN').replace(/\//g, '-')}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast(`已导出 ${stocks.length} 只股票数据`, 'success');
+    }
+
+    // ========== 导入数据（JSON） ==========
+    function importStockDataJSON(file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async function(e) {
+        try {
+          const data = JSON.parse(e.target.result);
+          const list = Array.isArray(data) ? data : (data.stocks || []);
+          if (!list.length) {
+            showToast('文件中没有可导入的股票数据', 'error');
+            return;
+          }
+          const valid = list.every(s => s.code && s.name);
+          if (!valid) {
+            showToast('文件格式错误：每条记录必须包含 code 和 name', 'error');
+            return;
+          }
+          if (!confirm(`确认导入 ${list.length} 只股票？同一代码已存在的记录将被跳过。`)) return;
+
+          let successCount = 0;
+          let skipCount = 0;
+          const existingCodes = new Set((allStocks || []).map(s => s.code));
+
+          for (const s of list) {
+            if (existingCodes.has(s.code)) { skipCount++; continue; }
+            try {
+              const stockData = {
+                name: s.name,
+                code: s.code,
+                exchange: s.exchange || (s.code.startsWith('6') ? '沪市' : (s.code.startsWith('0') || s.code.startsWith('3') ? '深市' : '未知')),
+                concept1: s.concept1 || '',
+                concept2: s.concept2 || ''
+              };
+              const resp = await supabaseFetch('stock_pool', {
+                method: 'POST',
+                body: stockData
+              });
+              if (resp.ok) { successCount++; existingCodes.add(s.code); }
+              else { skipCount++; }
+            } catch (err) { skipCount++; }
+          }
+
+          showToast(`导入完成：成功 ${successCount} 只，跳过 ${skipCount} 只`, 'success');
+          await loadStocks();
+        } catch (err) {
+          showToast('导入失败：' + err.message, 'error');
+        }
+      };
+      reader.readAsText(file);
+      const fileInput = document.querySelector('input[type="file"][accept=".json"]');
+      if (fileInput) fileInput.value = '';
+    }
+
+    // ========== AI 分析（发送至千问） ==========
+    function analyzeWithAI() {
+      const stocks = allStocks;
+      if (!stocks || stocks.length === 0) {
+        showToast('暂无股票数据可分析', 'error');
+        return;
+      }
+
+      const priceMap = window.stockPrices || {};
+      const sorted = [...stocks].sort((a, b) => {
+        const rA = priceMap[a.code]?.changeRate || 0;
+        const rB = priceMap[b.code]?.changeRate || 0;
+        return rB - rA;
+      });
+
+      let prompt = '请帮我分析以下股票池，给出总体分析和建议：\n\n';
+      prompt += `我的股票池共有 ${stocks.length} 只股票：\n\n`;
+
+      sorted.forEach((stock, index) => {
+        const pd = priceMap[stock.code];
+        const currentPrice = pd ? pd.currentPrice : null;
+        const changeRate = pd ? pd.changeRate : null;
+
+        prompt += `${index + 1}. ${stock.name} (${stock.code})\n`;
+        prompt += `   - 所属市场: ${stock.exchange || '未知'}\n`;
+        if (stock.concept1) prompt += `   - 概念1: ${stock.concept1}\n`;
+        if (stock.concept2) prompt += `   - 概念2: ${stock.concept2}\n`;
+        prompt += `   - 当前价: ${currentPrice ? '¥' + currentPrice.toFixed(2) : '未获取'}\n`;
+        prompt += `   - 今日涨跌: ${changeRate !== null ? changeRate.toFixed(2) + '%' : '未获取'}\n`;
+        const kdj60Data = window.kdj60Data?.[stock.code];
+        if (kdj60Data) {
+          prompt += `   - KDJ60(J值): ${kdj60Data.j.toFixed(2)}${kdj60Data.j > 80 ? '（超买）' : kdj60Data.j < 20 ? '（超卖）' : ''}\n`;
+        }
+        prompt += '\n';
+      });
+
+      prompt += '\n请从以下几个方面进行分析：\n';
+      prompt += '1. 今日整体涨跌情况\n';
+      prompt += '2. 行业/板块分布是否合理\n';
+      prompt += '3. 哪些股票值得重点关注\n';
+      prompt += '4. 当前市场环境下的操作建议\n';
+      prompt += '5. 有哪些潜在风险需要注意\n';
+
+      navigator.clipboard.writeText(prompt).then(() => {
+        window.open('https://tongyi.aliyun.com/qianwen/', '_blank');
+        showToast('持仓分析内容已复制到剪贴板，正在打开千问...', 'success');
+      }).catch(() => {
+        const modal = document.createElement('div');
+        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+        modal.innerHTML = `
+          <div style="background:#22252f;border-radius:12px;padding:24px;max-width:600px;width:90%;max-height:80vh;overflow:auto;border:1px solid #3a3f4e;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+              <h3 style="font-size:16px;font-weight:600;color:#e2e8f0;">AI 分析内容（手动复制）</h3>
+              <button onclick="this.closest('div[style*=fixed]').remove()" style="border:none;background:none;font-size:20px;cursor:pointer;color:#7a8099;">✕</button>
+            </div>
+            <textarea id="_aiPromptTextarea" style="width:100%;height:300px;border:1px solid #3a3f4e;border-radius:8px;padding:10px;font-size:13px;resize:vertical;background:#1a1c23;color:#e2e8f0;">${prompt.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>
+            <div style="display:flex;gap:8px;margin-top:12px;">
+              <button onclick="document.getElementById('_aiPromptTextarea').select();document.execCommand('copy');showToast('已复制！','success');" 
+                style="flex:1;background:#6366f1;color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-size:14px;">复制内容</button>
+              <a href="https://tongyi.aliyun.com/qianwen/" target="_blank"
+                style="flex:1;background:#a855f7;color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-size:14px;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;">打开千问</a>
+            </div>
+          </div>`;
+        document.body.appendChild(modal);
+        modal.addEventListener('click', ev => { if (ev.target === modal) modal.remove(); });
+      });
+    }
+  </script>
+
+  <!-- 添加/编辑股票弹窗 -->
+  <div id="addModal" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-title" id="modalTitle">添加股票</div>
+      
+      <div class="form-group">
+        <label>股票名称 * <span style="color:var(--muted);font-weight:400;font-size:11px;">（输入后按回车确认查询代码）</span></label>
+        <input type="text" id="stockName" placeholder="如：中国船舶" autocomplete="off">
+      </div>
+
+      <div class="form-group">
+        <label>股票代码 * <span style="color:var(--muted);font-weight:400;font-size:11px;">（输入6位代码后按回车确认）</span></label>
+        <input type="text" id="stockCode" placeholder="如：600150" autocomplete="off">
+      </div>
+
+      <div class="form-group">
+        <label>交易所 * <span style="color:var(--muted);font-weight:400;font-size:11px;">（代码确认后自动识别）</span></label>
+        <input type="text" id="stockExchangeDisplay" placeholder="输入代码后按回车确认" readonly style="background:rgba(255,255,255,.03);color:var(--muted);cursor:default;">
+      </div>
+
+      <div class="form-group">
+        <label>概念1</label>
+        <input type="text" id="stockConcept1" placeholder="如：军工、船舶" autocomplete="off">
+      </div>
+
+      <div class="form-group">
+        <label>概念2</label>
+        <input type="text" id="stockConcept2" placeholder="如：央企改革、一带一路" autocomplete="off">
+      </div>
+
+      <div id="stockLookupHint" style="font-size:12px;margin-bottom:12px;min-height:18px;"></div>
+
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeAddModal()">取消</button>
+        <button class="btn-save" onclick="saveStock()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 删除确认弹窗 -->
+  <div id="deleteModal" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-title">🗑️ 确认删除</div>
+      <div class="confirm-text">
+        确定要删除 <span id="deleteStockName" style="color:#f59e0b;font-weight:600;"></span> 吗？<br>
+        此操作无法撤销。
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeDeleteModal()">取消</button>
+        <button class="btn-save" style="background:rgba(224,58,58,.12);color:#f87171;border-color:#f87171;" onclick="confirmDelete()">确认删除</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 详情弹窗 -->
+  <div id="detailModal" class="modal-overlay">
+    <div class="modal" style="max-width: 800px;">
+      <div class="modal-title">
+        📝 股票详情 - <span id="detailStockName" style="color:#f59e0b;font-weight:600;"></span>
+      </div>
+      
+      <div class="detail-toolbar">
+        <button onclick="formatText('bold')"><b>B</b></button>
+        <button onclick="formatText('italic')"><i>I</i></button>
+        <button onclick="formatText('underline')"><u>U</u></button>
+        <span class="toolbar-sep">|</span>
+        <button onclick="formatText('h2')">H2</button>
+        <span class="toolbar-sep">|</span>
+        <button onclick="formatText('color-crimson')" style="color:#fde047">金</button>
+        <button onclick="formatText('color-orange')" style="color:#c2410c">橙</button>
+        <button onclick="formatText('color-purple')" style="color:#a78bfa">紫</button>
+        <span class="toolbar-sep">|</span>
+        <button onclick="formatText('insertUnorderedList')">• 列表</button>
+        <button onclick="formatText('insertOrderedList')">1. 列表</button>
+        <button onclick="formatText('insertHorizontalRule')">─ 分隔线</button>
+      </div>
+      
+      <div class="detail-editor" id="detailEditor" contenteditable="true" placeholder="请输入详情..."></div>
+      
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeDetailModal()">取消</button>
+        <button class="btn-save" style="background:rgba(245,158,11,.12);color:#fbbf24;border-color:#fbbf24;" onclick="saveDetail()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 批量导入弹窗 -->
+  <div id="importModal" class="modal-overlay">
+    <div class="modal" style="max-width: 700px;">
+      <div class="modal-title">📥 批量导入股票</div>
+      
+      <div class="form-group">
+        <label>选择文件 * <span style="color:var(--muted);font-weight:400;font-size:11px;">（支持.txt文件，每行一个6位股票代码）</span></label>
+        <input type="file" id="importFile" accept=".txt" onchange="handleFileSelect(event)" style="padding: 8px;">
+      </div>
+
+      <div class="form-group">
+        <label>文件内容预览</label>
+        <textarea id="importContent" readonly placeholder="选择文件后将显示内容..." style="height: 100px; resize: vertical; font-family: monospace;"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>导入预览</label>
+        <div id="importPreview" style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 10px; background: rgba(255,255,255,.03);">
+          <!-- 预览内容将在这里动态生成 -->
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>导入进度</label>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="flex: 1; height: 8px; background: rgba(255,255,255,.1); border-radius: 4px; overflow: hidden;">
+            <div id="importProgress" style="width: 0%; height: 100%; background: var(--accent); transition: width 0.3s;"></div>
+          </div>
+          <span id="importStatus" class="import-status">等待导入</span>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeImportModal()">取消</button>
+        <button class="btn-save" onclick="startImport()" style="background: rgba(22,163,74,.12); color: #16a34a; border-color: #16a34a;">开始导入</button>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

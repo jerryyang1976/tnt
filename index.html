@@ -492,6 +492,7 @@
         .profit-rate,
         .change-rate {
             font-weight: 600 !important;
+            background-color: #f0f0f0;
         }
         .profit-amount {
             font-weight: 600 !important;
@@ -2426,14 +2427,14 @@
                             <th>股票名称</th>
                             <th>股票代码</th>
                             <th>所属市场</th>
-                            <th>成本价</th>
                             <th>持仓数量</th>
-                            <th>当前价</th>
                             <th class="sortable" onclick="toggleSort('changeRate')">当日涨跌幅${getSortIcon('changeRate')}</th>
+                            <th>成本价</th>
                             <th class="sortable" onclick="toggleSort('profitAmount')">持仓收益${getSortIcon('profitAmount')}</th>
                             <th class="sortable" onclick="toggleSort('profitRate')">盈亏率${getSortIcon('profitRate')}</th>
-                            <th class="sortable" onclick="toggleSort('kdj60')">KDJ 60${getSortIcon('kdj60')}</th>
+                            <th>当前价</th>
                             <th>目标价</th>
+                            <th class="sortable" onclick="toggleSort('kdj60')">KDJ 60${getSortIcon('kdj60')}</th>
                             <th>添加时间</th>
                             <th>操作</th>
                         </tr>
@@ -2447,14 +2448,14 @@
                                 </td>
                                 <td>${escapeHtml(stock.stock_code)}</td>
                                 <td>${getMarketBadge(stock.market)}</td>
-                                <td class="cost-price">${stock.cost_price ? '¥' + stock.cost_price : '-'}</td>
                                 <td>${stock.quantity || 100}</td>
-                                <td class="current-price" data-code="${stock.stock_code}">-</td>
                                 <td class="change-rate">-</td>
+                                <td class="cost-price">${stock.cost_price ? '¥' + stock.cost_price : '-'}</td>
                                 <td class="profit-amount" data-cost="${stock.cost_price || 0}" data-quantity="${stock.quantity || 100}">-</td>
                                 <td class="profit-rate" data-cost="${stock.cost_price || 0}">-</td>
-                                <td class="kdj60-value" data-code="${stock.stock_code}">-</td>
+                                <td class="current-price" data-code="${stock.stock_code}">-</td>
                                 <td class="target-price">${stock.cost_price ? '¥' + (stock.cost_price * 1.03).toFixed(2) : '-'}</td>
+                                <td class="kdj60-value" data-code="${stock.stock_code}">-</td>
                                 <td>${formatDate(stock.created_at)}</td>
                                 <td>
                                     <button class="btn btn-edit" onclick="editStock(${stock.id}, '${escapeHtml(stock.stock_name)}', '${escapeHtml(stock.stock_code)}', '${escapeHtml(stock.market)}', ${stock.cost_price || 0}, ${stock.quantity || 100}, '${escapeHtml(stock.notes || '')}')">编辑</button>
@@ -2583,14 +2584,14 @@
                         </td>
                         <td>${escapeHtml(stock.stock_code)}</td>
                         <td>${getMarketBadge(stock.market)}</td>
-                        <td class="cost-price">${stock.cost_price ? '¥' + stock.cost_price : '-'}</td>
                         <td>${quantity}</td>
-                        <td class="current-price" data-code="${stock.stock_code}">${currentPrice > 0 ? '¥' + currentPrice.toFixed(2) : '-'}</td>
                         <td class="change-rate ${changeRate >= 0 ? 'profit' : 'loss'}">${(changeRate >= 0 ? '+' : '') + changeRate.toFixed(2) + '%'}</td>
+                        <td class="cost-price">${stock.cost_price ? '¥' + stock.cost_price : '-'}</td>
                         <td class="profit-amount ${profitAmount >= 0 ? 'profit' : 'loss'}" data-cost="${stock.cost_price || 0}" data-quantity="${quantity}">${stock.cost_price ? (profitAmount >= 0 ? '+' : '') + '¥' + profitAmount : '-'}</td>
                         <td class="profit-rate ${profitRate >= 0 ? 'profit' : 'loss'}" data-cost="${stock.cost_price || 0}">${stock.cost_price ? profitRate + '%' : '-'}</td>
-                        <td class="kdj60-value ${kdj60J !== '-' ? (kdj60Data.j > 80 ? 'kdj-overbought' : kdj60Data.j < 20 ? 'kdj-oversold' : 'kdj-neutral') : ''}" data-code="${stock.stock_code}">${kdj60J}</td>
+                        <td class="current-price" data-code="${stock.stock_code}">${currentPrice > 0 ? '¥' + currentPrice.toFixed(2) : '-'}</td>
                         <td class="target-price">${stock.cost_price ? '¥' + (stock.cost_price * 1.03).toFixed(2) : '-'}</td>
+                        <td class="kdj60-value ${kdj60J !== '-' ? (kdj60Data.j > 80 ? 'kdj-overbought' : kdj60Data.j < 20 ? 'kdj-oversold' : 'kdj-neutral') : ''}" data-code="${stock.stock_code}">${kdj60J}</td>
                         <td>${formatDate(stock.created_at)}</td>
                         <td>
                             <button class="btn btn-edit" onclick="editStock(${stock.id}, '${escapeHtml(stock.stock_name)}', '${escapeHtml(stock.stock_code)}', '${escapeHtml(stock.market)}', ${stock.cost_price || 0}, ${stock.quantity || 100}, '${escapeHtml(stock.notes || '')}')">编辑</button>

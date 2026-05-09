@@ -28,7 +28,7 @@
     /* 连接状态栏 */
     .db-status-bar {
       position: fixed;
-      top: 0;
+      top: 40px;
       left: 0;
       right: 0;
       background: rgba(30,35,54,.95);
@@ -66,7 +66,39 @@
     }
     .db-status-bar .db-btn:hover { border-color: var(--accent); color: var(--accent); }
     .db-status-bar .loading { color: var(--gold); }
-    body { padding-top: 40px; }
+    body { padding-top: 80px; }
+
+    /* 全局导航 */
+    .global-nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      background: rgba(30,35,54,0.95);
+      border-bottom: 1px solid rgba(58,63,78,0.5);
+      padding: 8px 16px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      font-size: 13px;
+      z-index: 10000;
+    }
+    .global-nav .nav-item {
+      color: #93c5fd;
+      text-decoration: none;
+      padding: 4px 10px;
+      border-radius: 6px;
+      transition: all .2s;
+      white-space: nowrap;
+    }
+    .global-nav .nav-item:hover {
+      background: rgba(59,130,246,.15);
+      color: #fff;
+    }
+    .global-nav .nav-item.current {
+      background: rgba(59,130,246,.25);
+      color: #fff;
+      font-weight: 600;
+    }
 
     /* Footer */
     .footer {
@@ -517,14 +549,21 @@
   </style>
 </head>
 <body>
+  <!-- 全局导航 -->
+  <div class="global-nav">
+    <a href="index.html" target="_blank" class="nav-item">📊 首页</a>
+    <a href="login.html" target="_blank" class="nav-item">🔐 登录</a>
+    <a href="stockck1.0.html" target="_blank" class="nav-item">📁 股票池</a>
+    <a href="stockcle.html" target="_blank" class="nav-item current">🧹 清列表</a>
+    <a href="stockfx-v2.html" target="_blank" class="nav-item">📈 v2分析</a>
+    <a href="stockai-analysis.html" target="_blank" class="nav-item">🤖 AI分析</a>
+  </div>
+
   <!-- 数据库状态栏 -->
   <div class="db-status-bar">
     <span class="status-dot" id="statusDot"></span>
     <span class="db-url" id="dbUrlDisplay">正在连接...</span>
     <button class="db-btn" onclick="window.location.href='login.html'">重新登录</button>
-    <button class="db-btn" onclick="window.location.href='index.html'" style="border-color:rgba(22,163,74,.5);color:#4ade80;">📈 持仓股票</button>
-    <button class="db-btn" onclick="window.location.href='stockfx-v2.html'" style="border-color:rgba(59,130,246,.5);color:#93c5fd;">📊 股票分析</button>
-    <button class="db-btn" onclick="window.location.href='stockck1.0.html'" style="border-color:rgba(14,116,144,.5);color:#67e8f9;">📋 股票池</button>
   </div>
 
   <header>

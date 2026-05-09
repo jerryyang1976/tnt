@@ -1,0 +1,1849 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>股票AI分析 - 智能基本面分析</title>
+  <style>
+    :root {
+      --red:    #e03a3a;
+      --green:  #16a34a;
+      --gold:   #f59e0b;
+      --dark:   #1a1c23;
+      --panel:  #22252f;
+      --border: #3a3f4e;
+      --text:   #e2e8f0;
+      --muted:  #7a8099;
+      --accent: #3b82f6;
+      --card-bg: #2a2d3a;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--dark);
+      color: var(--text);
+      font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
+      min-height: 100vh;
+      padding-bottom: 60px;
+    }
+
+    /* ── 数据库连接状态栏 ── */
+    .db-status-bar {
+      position: fixed;
+      top: 40px; left: 0; right: 0;
+      background: rgba(30,35,54,.95);
+      border-bottom: 1px solid var(--border);
+      padding: 8px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      z-index: 1000;
+      font-size: 12px;
+    }
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    .status-dot.connected { background: var(--green); }
+    .status-dot.error { background: var(--red); }
+    .db-url {
+      flex: 1;
+      color: var(--muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .db-btn {
+      padding: 4px 10px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .db-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .loading { color: var(--gold); }
+    body { padding-top: 80px; }
+
+    /* 全局导航 */
+    .global-nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      background: rgba(30,35,54,0.95);
+      border-bottom: 1px solid rgba(58,63,78,0.5);
+      padding: 8px 16px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      font-size: 13px;
+      z-index: 10000;
+    }
+    .global-nav .nav-item {
+      color: #93c5fd;
+      text-decoration: none;
+      padding: 4px 10px;
+      border-radius: 6px;
+      transition: all .2s;
+      white-space: nowrap;
+    }
+    .global-nav .nav-item:hover {
+      background: rgba(59,130,246,.15);
+      color: #fff;
+    }
+    .global-nav .nav-item.current {
+      background: rgba(59,130,246,.25);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, #0f1117 0%, #1a1f2e 60%, #0f1a2e 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 28px 24px 20px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    header::before {
+      content: "";
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 60% 80% at 50% -20%, rgba(59,130,246,.18) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .header-date { font-size: 12px; color: var(--muted); letter-spacing: 2px; margin-bottom: 8px; }
+    header h1 {
+      font-size: clamp(22px, 5vw, 36px); font-weight: 700; letter-spacing: 3px;
+      background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 40%, #e2e8f0 70%, #93c5fd 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .header-sub { margin-top: 6px; font-size: 13px; color: var(--muted); }
+    .badge {
+      display: inline-block; margin-top: 12px; padding: 3px 12px; border-radius: 20px;
+      font-size: 12px; background: rgba(59,130,246,.15); border: 1px solid rgba(59,130,246,.35);
+      color: #93c5fd; letter-spacing: 1px;
+    }
+
+    /* ── 控制栏 ── */
+    .controls {
+      max-width: 1100px;
+      margin: 24px auto 0;
+      padding: 0 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .btn-analyze-all {
+      padding: 10px 24px;
+      border-radius: 8px;
+      border: 1px solid var(--accent);
+      background: rgba(59,130,246,.15);
+      color: var(--accent);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .btn-analyze-all:hover { background: rgba(59,130,246,.25); transform: translateY(-1px); }
+    .btn-analyze-all:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+    .stats { font-size: 13px; color: var(--muted); }
+
+    /* ── 搜索框 ── */
+    .search-box {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 4px 4px 4px 12px;
+      transition: border-color .2s;
+    }
+    .search-box:focus-within { border-color: var(--accent); }
+    .search-box input {
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-size: 13px;
+      outline: none;
+      width: 180px;
+      font-family: inherit;
+    }
+    .search-box input::placeholder { color: var(--muted); }
+    .search-btn {
+      padding: 5px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--accent);
+      background: rgba(59,130,246,.15);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+      white-space: nowrap;
+    }
+    .search-btn:hover { background: rgba(59,130,246,.25); }
+
+    /* ── 搜索高亮 ── */
+    .search-highlight {
+      border-color: var(--gold) !important;
+      box-shadow: 0 0 0 2px rgba(245,158,11,.2);
+      animation: pulseHighlight 2s ease-in-out infinite;
+    }
+    @keyframes pulseHighlight {
+      0%, 100% { box-shadow: 0 0 0 2px rgba(245,158,11,.2); }
+      50% { box-shadow: 0 0 0 4px rgba(245,158,11,.35); }
+    }
+
+    /* ── Container ── */
+    .container { max-width: 1100px; margin: 20px auto 0; padding: 0 16px; display: grid; gap: 20px; }
+
+    /* ── Stock Card ── */
+    .stock-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      transition: border-color .2s;
+    }
+    .stock-card:hover { border-color: var(--accent); }
+    .stock-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 18px 22px;
+      cursor: pointer;
+      user-select: none;
+      transition: background .2s;
+    }
+    .stock-header:hover { background: rgba(255,255,255,.02); }
+    .stock-info { flex: 1; }
+    .stock-name {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .stock-code {
+      font-size: 13px;
+      color: var(--muted);
+      margin-left: 8px;
+    }
+    .stock-price {
+      font-size: 24px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+    .stock-chg {
+      font-size: 14px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    .stock-chg.profit { color: var(--red); background: rgba(224,58,58,.1); }
+    .stock-chg.loss { color: var(--green); background: rgba(22,163,74,.1); }
+    .expand-icon {
+      font-size: 18px;
+      color: var(--muted);
+      transition: transform .2s;
+    }
+    .expand-icon.expanded { transform: rotate(180deg); }
+
+    /* ── Analysis Panel ── */
+    .analysis-panel {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height .3s ease;
+    }
+    .analysis-panel.expanded { max-height: 2000px; }
+    .analysis-content {
+      padding: 0 22px 22px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Analysis Sections ── */
+    .section {
+      margin-top: 20px;
+    }
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-title::before {
+      content: '';
+      width: 3px;
+      height: 16px;
+      background: var(--accent);
+      border-radius: 2px;
+    }
+
+    /* ── Info Grid ── */
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+    }
+    .info-item {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+    }
+    .info-label {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .info-value {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .info-value.profit { color: var(--red); }
+    .info-value.loss { color: var(--green); }
+
+    /* ── Bull/Bear Tags ── */
+    .tags-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .tag {
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .tag.bull { background: rgba(224,58,58,.12); color: var(--red); border: 1px solid rgba(224,58,58,.25); }
+    .tag.bear { background: rgba(22,163,74,.12); color: var(--green); border: 1px solid rgba(22,163,74,.25); }
+    .tag.neutral { background: rgba(245,158,11,.12); color: var(--gold); border: 1px solid rgba(245,158,11,.25); }
+
+    /* ── AI Analysis Text ── */
+    .ai-text {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      font-size: 13px;
+      line-height: 1.8;
+      color: var(--text);
+      white-space: pre-wrap;
+    }
+    .ai-text.loading {
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    /* ── Loading Spinner ── */
+    .spinner {
+      display: inline-block;
+      width: 16px; height: 16px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Empty State ── */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+    }
+    .empty-state .icon { font-size: 48px; margin-bottom: 16px; opacity: .5; }
+    .empty-state p { font-size: 14px; }
+
+    /* ── Footer ── */
+    .footer {
+      text-align: center;
+      padding: 24px 16px 32px;
+      font-size: 12px;
+      color: #5a6275;
+    }
+
+    /* ── Progress Bar ── */
+    .progress-bar {
+      width: 100%;
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 12px;
+    }
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+      transition: width .3s;
+    }
+
+    /* ── 添加股票按钮 ── */
+    .btn-add-stock {
+      padding: 10px 24px;
+      border-radius: 8px;
+      border: 1px solid var(--gold);
+      background: rgba(245,158,11,.15);
+      color: var(--gold);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+      white-space: nowrap;
+    }
+    .btn-add-stock:hover { background: rgba(245,158,11,.25); transform: translateY(-1px); }
+
+    /* ── 重点关注卡片 ── */
+    .stock-card { position: relative; }
+    .stock-card.focus {
+      border-color: rgba(245,158,11,.5);
+      box-shadow: 0 0 0 1px rgba(245,158,11,.2), 0 4px 24px rgba(245,158,11,.1);
+    }
+    .stock-card.focus::before {
+      content: '重点关注';
+      position: absolute;
+      top: 0; right: 12px;
+      background: linear-gradient(135deg, #f59e0b, #fbbf24);
+      color: #1a1c23;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 10px;
+      border-bottom-left-radius: 6px;
+      border-bottom-right-radius: 6px;
+      letter-spacing: 1px;
+      z-index: 2;
+    }
+
+    /* ── 弹窗 ── */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.6);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center; justify-content: center;
+      z-index: 2000;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal-box {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px;
+      width: 380px;
+      max-width: 90vw;
+      box-shadow: 0 20px 60px rgba(0,0,0,.4);
+    }
+    .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 20px; color: var(--text); }
+    .modal-input {
+      width: 100%;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+      color: var(--text);
+      font-size: 14px;
+      margin-bottom: 12px;
+      outline: none;
+      font-family: inherit;
+    }
+    .modal-input:focus { border-color: var(--accent); }
+    .modal-btns { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+    .modal-btn {
+      padding: 8px 20px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all .2s;
+      font-family: inherit;
+    }
+    .modal-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .modal-btn.primary {
+      border-color: var(--accent);
+      background: rgba(59,130,246,.15);
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .modal-btn.primary:hover { background: rgba(59,130,246,.25); }
+  </style>
+</head>
+<body>
+<!-- 全局导航 -->
+  <div class="global-nav">
+    <a href="index.html" target="_blank" class="nav-item">📊 首页</a>
+    <a href="login.html" target="_blank" class="nav-item">🔐 登录</a>
+    <a href="stockck1.0.html" target="_blank" class="nav-item">📁 股票池</a>
+    <a href="stockcle.html" target="_blank" class="nav-item">🧹 清列表</a>
+    <a href="stockfx-v2.html" target="_blank" class="nav-item">📈 v2分析</a>
+    <a href="stockai-analysis.html" target="_blank" class="nav-item current">🤖 AI分析</a>
+  </div>
+
+<!-- 数据库状态栏 -->
+<div class="db-status-bar">
+  <div class="status-dot" id="statusDot"></div>
+  <span class="db-url" id="projectUrl">未连接数据库</span>
+  <button class="db-btn" onclick="configureDB()">配置数据库</button>
+  <button class="db-btn" onclick="loadStocks()">🔄 刷新</button>
+</div>
+
+<!-- Header -->
+<header>
+  <div class="header-date" id="headerDate"></div>
+  <h1>🤖 股票AI分析</h1>
+  <div class="header-sub">智能基本面分析 · 利好利空解读 · 投资策略建议</div>
+  <div class="badge" id="dbBadge">📊 加载中...</div>
+</header>
+
+<!-- 控制栏 -->
+<div class="controls">
+  <div class="stats" id="statsInfo">共 0 只股票</div>
+  <div style="display:flex;gap:8px;align-items:center;">
+    <button class="btn-add-stock" onclick="showAddStockModal()">➕ 添加股票</button>
+    <div class="search-box">
+      <input type="text" id="stockSearch" placeholder="🔍 搜索股票名称/代码..." oninput="handleSearch()" onkeydown="if(event.key==='Enter')scrollToFirstMatch()">
+      <button class="search-btn" onclick="scrollToFirstMatch()">定位</button>
+    </div>
+    <button class="btn-analyze-all" id="btnAnalyzeAll" onclick="analyzeAll()">🤖 一键分析全部</button>
+  </div>
+</div>
+
+<!-- 进度条 -->
+<div class="container" id="progressContainer" style="display:none;">
+  <div class="progress-bar">
+    <div class="progress-fill" id="progressFill" style="width:0%"></div>
+  </div>
+  <div style="text-align:center;font-size:12px;color:var(--muted);margin-top:8px;" id="progressText">正在分析...</div>
+</div>
+
+<!-- 股票列表 -->
+<div class="container" id="stockContainer"></div>
+
+<!-- Empty State -->
+<div class="empty-state" id="emptyState" style="display:none;">
+  <div class="icon">📊</div>
+  <p>暂无股票数据，请先在 <a href="index.html" style="color:var(--accent);">index.html</a> 中添加股票</p>
+</div>
+
+<!-- 添加股票弹窗 -->
+<div class="modal-overlay" id="addStockModal" onclick="if(event.target===this)hideAddStockModal()">
+  <div class="modal-box">
+    <div class="modal-title">➕ 添加重点关注股票</div>
+    <input type="text" class="modal-input" id="addStockCode" placeholder="股票代码，如 002261" maxlength="6" oninput="onAddCodeInput()" onblur="autoFillNameByCode()" onkeydown="if(event.key==='Enter'){autoFillNameByCode();document.getElementById('addStockName').focus();}">
+    <input type="text" class="modal-input" id="addStockName" placeholder="股票名称（可选），如 拓维信息" onblur="autoFillCodeByName()" onkeydown="if(event.key==='Enter'){autoFillCodeByName();confirmAddStock();}">
+    <div class="modal-btns">
+      <button class="modal-btn" onclick="hideAddStockModal()">取消</button>
+      <button class="modal-btn primary" onclick="confirmAddStock()">添加</button>
+    </div>
+  </div>
+</div>
+
+<!-- Footer -->
+<div class="footer">
+  Powered by WorkBuddy · 数据来源：腾讯行情 · <span id="footerDate"></span>
+</div>
+
+<!-- Supabase & 行情 API -->
+<script type="module">
+// ==================== 配置区 ====================
+let supabaseUrl = null;
+let supabaseKey = null;
+let supabaseClient = null;
+let stocksData = [];
+
+// 腾讯行情 API
+const QT_API = 'https://qt.gtimg.cn/q=';
+
+// ==================== 初始化 ====================
+document.getElementById('headerDate').textContent = new Date().toLocaleDateString('zh-CN', { year:'numeric', month:'long', day:'numeric', weekday:'long' });
+document.getElementById('footerDate').textContent = new Date().getFullYear();
+
+initDB();
+
+// ==================== 数据库初始化 ====================
+async function initDB() {
+  supabaseUrl = localStorage.getItem('supabase_url');
+  supabaseKey = localStorage.getItem('supabase_key');
+
+  if (!supabaseUrl || !supabaseKey) {
+    document.getElementById('projectUrl').textContent = '未配置数据库';
+    document.getElementById('dbBadge').textContent = '⚠️ 未连接';
+    document.getElementById('dbBadge').style.background = 'rgba(224,58,58,.15)';
+    document.getElementById('dbBadge').style.borderColor = 'rgba(224,58,58,.35)';
+    document.getElementById('dbBadge').style.color = '#f87171';
+    return;
+  }
+
+  try {
+    const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/+esm');
+    supabaseClient = createClient(supabaseUrl, supabaseKey);
+    document.getElementById('statusDot').classList.add('connected');
+    document.getElementById('projectUrl').textContent = supabaseUrl;
+    document.getElementById('dbBadge').textContent = '✅ 数据库已连接';
+    document.getElementById('dbBadge').classList.add('db-badge');
+    loadStocks();
+  } catch(e) {
+    console.error('Supabase init error:', e);
+    document.getElementById('statusDot').classList.add('error');
+  }
+}
+
+// ==================== 配置数据库 ====================
+window.configureDB = function() {
+  const url = prompt('请输入 Supabase 项目 URL：', supabaseUrl || '');
+  if (!url) return;
+  const key = prompt('请输入 Supabase Anon Key：', supabaseKey || '');
+  if (!key) return;
+  localStorage.setItem('supabase_url', url.trim());
+  localStorage.setItem('supabase_key', key.trim());
+  location.reload();
+};
+
+// ==================== 加载股票列表 ====================
+window.loadStocks = async function() {
+  if (!supabaseClient) {
+    alert('请先配置数据库连接');
+    return;
+  }
+
+  try {
+    const { data, error } = await supabaseClient
+      .from('stocks')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    stocksData = data || [];
+    document.getElementById('statsInfo').textContent = `共 ${stocksData.length} 只股票`;
+    renderStocks();
+  } catch(e) {
+    console.error('Load stocks error:', e);
+    alert('加载股票失败：' + e.message);
+  }
+};
+
+// ==================== 渲染股票列表 ====================
+function renderStocks() {
+  const container = document.getElementById('stockContainer');
+  const empty = document.getElementById('emptyState');
+
+  if (stocksData.length === 0) {
+    container.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+
+  empty.style.display = 'none';
+
+  container.innerHTML = stocksData.map((stock, idx) => {
+    const code = stock.stock_code;
+    const name = stock.stock_name || code;
+    const id = `analysis-${idx}`;
+    const isFocus = stock.isFocus ? 'focus' : '';
+    return `
+      <div class="stock-card ${isFocus}" id="card-${idx}">
+        <div class="stock-header" onclick="toggleCard(${idx})">
+          <div class="stock-info">
+            <span class="stock-name">${name}</span>
+            <span class="stock-code">${code}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div style="text-align:right;">
+              <div class="stock-price" id="price-${idx}">--</div>
+              <div class="stock-chg" id="chg-${idx}">--</div>
+            </div>
+            <div class="expand-icon" id="icon-${idx}">▼</div>
+          </div>
+        </div>
+        <div class="analysis-panel" id="panel-${idx}">
+          <div class="analysis-content">
+            <!-- 基本面信息 -->
+            <div class="section">
+              <div class="section-title">📋 基本面信息</div>
+              <div class="info-grid" id="basic-${idx}">
+                <div class="info-item"><div class="info-label">概念1</div><div class="info-value" id="concept1-${idx}">加载中...</div></div>
+                <div class="info-item"><div class="info-label">概念2</div><div class="info-value" id="concept2-${idx}">--</div></div>
+                <div class="info-item"><div class="info-label">总股本</div><div class="info-value" id="totalShare-${idx}">--</div></div>
+                <div class="info-item"><div class="info-label">流通股</div><div class="info-value" id="floatShare-${idx}">--</div></div>
+                <div class="info-item"><div class="info-label">总市值</div><div class="info-value" id="mktCap-${idx}">--</div></div>
+                <div class="info-item"><div class="info-label">所属区域</div><div class="info-value" id="region-${idx}">--</div></div>
+              </div>
+            </div>
+
+            <!-- 财务数据 -->
+            <div class="section">
+              <div class="section-title">💰 财务数据</div>
+              <div class="info-grid" id="finance-${idx}">
+                <div class="info-item"><div class="info-label">营业收入(TTM)</div><div class="info-value" id="revenue-${idx}">--</div></div>
+                <div class="info-item"><div class="info-label">净利润(TTM)</div><div class="info-value" id="profit-${idx}">--</div></div>
+                <div class="info-item"><div class="info-label">PE(TTM)</div><div class="info-value" id="pe-${idx}">--</div></div>
+                <div class="info-item"><div class="info-label">PB</div><div class="info-value" id="pb-${idx}">--</div></div>
+                <div class="info-item"><div class="info-label">ROE</div><div class="info-value" id="roe-${idx}">--</div></div>
+                <div class="info-item"><div class="info-label">毛利率</div><div class="info-value" id="grossMargin-${idx}">--</div></div>
+              </div>
+            </div>
+
+            <!-- 利好/利空 -->
+            <div class="section">
+              <div class="section-title">⚡ 利好/利空因素</div>
+              <div id="bullBear-${idx}">
+                <div class="tags-container" id="bullTags-${idx}"></div>
+                <div class="tags-container" id="bearTags-${idx}" style="margin-top:8px;"></div>
+              </div>
+            </div>
+
+            <!-- AI 分析 -->
+            <div class="section">
+              <div class="section-title">🤖 AI 智能分析</div>
+              <div class="ai-text loading" id="aiText-${idx}">
+                点击"开始分析"按钮，AI 将为您生成详细的股票分析报告...
+              </div>
+              <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="btn-analyze-all" style="padding:6px 16px;font-size:13px;" onclick="analyzeStock(${idx})">🤖 开始分析</button>
+                <button class="btn-analyze-all" style="padding:6px 16px;font-size:13px;border-color:var(--gold);color:var(--gold);background:rgba(245,158,11,.12);" onclick="copyAnalysis(${idx})">📋 复制分析</button>
+                <button class="btn-analyze-all" style="padding:6px 16px;font-size:13px;border-color:#8b5cf6;color:#a78bfa;background:rgba(139,92,246,.12);" onclick="openDoubao(${idx})">🧠 大模型分析</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // 自动加载行情数据
+  const quotePromises = stocksData.map((stock, idx) => loadStockQuote(stock.stock_code, idx));
+  Promise.all(quotePromises).then(() => {
+    // 所有行情加载完成后，按涨幅排序并重新渲染
+    sortStocksByChgPct();
+  });
+}
+
+// ==================== 按涨幅排序 ====================
+function sortStocksByChgPct() {
+  // 分离重点关注和普通股票
+  const focusStocks = stocksData.filter(s => s.isFocus);
+  const normalStocks = stocksData.filter(s => !s.isFocus);
+
+  // 普通股票按涨跌幅降序排列（涨幅大的在前）
+  normalStocks.sort((a, b) => {
+    const chgA = a.quote ? parseFloat(a.quote.chgPct) : -Infinity;
+    const chgB = b.quote ? parseFloat(b.quote.chgPct) : -Infinity;
+    return chgB - chgA;
+  });
+
+  // 重点关注在前，普通股票在后
+  stocksData = [...focusStocks, ...normalStocks];
+  // 重新渲染
+  renderSortedStocks();
+}
+
+// ==================== 渲染排序后的股票列表 ====================
+function renderSortedStocks() {
+  const container = document.getElementById('stockContainer');
+  const empty = document.getElementById('emptyState');
+
+  if (stocksData.length === 0) {
+    container.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+
+  empty.style.display = 'none';
+
+  container.innerHTML = stocksData.map((stock, idx) => {
+    const code = stock.stock_code;
+    const name = stock.stock_name || code;
+    const quote = stock.quote || {};
+    const chgPct = quote.chgPct != null ? parseFloat(quote.chgPct) : null;
+    const price = quote.price || '--';
+    const chgText = chgPct != null ? `${chgPct >= 0 ? '+' : ''}${chgPct.toFixed(2)}%` : '--';
+    const chgClass = chgPct != null ? (chgPct >= 0 ? 'profit' : 'loss') : '';
+    const isFocus = stock.isFocus ? 'focus' : '';
+    return `
+      <div class="stock-card ${isFocus}" id="card-${idx}">
+        <div class="stock-header" onclick="toggleCard(${idx})">
+          <div class="stock-info">
+            <span class="stock-name">${name}</span>
+            <span class="stock-code">${code}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div style="text-align:right;">
+              <div class="stock-price" id="price-${idx}">${price}</div>
+              <div class="stock-chg ${chgClass}" id="chg-${idx}">${chgText}</div>
+            </div>
+            <div class="expand-icon" id="icon-${idx}">▼</div>
+          </div>
+        </div>
+        <div class="analysis-panel" id="panel-${idx}">
+          <div class="analysis-content">
+            <!-- 基本面信息 -->
+            <div class="section">
+              <div class="section-title">📋 基本面信息</div>
+              <div class="info-grid" id="basic-${idx}">
+                <div class="info-item"><div class="info-label">概念1</div><div class="info-value" id="concept1-${idx}">加载中...</div></div>
+                <div class="info-item"><div class="info-label">概念2</div><div class="info-value" id="concept2-${idx}">--</div></div>
+                <div class="info-item"><div class="info-label">总股本</div><div class="info-value" id="totalShare-${idx}">--</div></div>
+                <div class="info-item"><div class="info-label">流通股</div><div class="info-value" id="floatShare-${idx}">--</div></div>
+                <div class="info-item"><div class="info-label">总市值</div><div class="info-value" id="mktCap-${idx}">--</div></div>
+                <div class="info-item"><div class="info-label">所属区域</div><div class="info-value" id="region-${idx}">--</div></div>
+              </div>
+            </div>
+
+            <!-- 财务数据 -->
+            <div class="section">
+              <div class="section-title">💰 财务数据</div>
+              <div class="info-grid" id="finance-${idx}">
+                <div class="info-item"><div class="info-label">营业收入(TTM)</div><div class="info-value" id="revenue-${idx}">--</div></div>
+                <div class="info-item"><div class="info-label">净利润(TTM)</div><div class="info-value" id="profit-${idx}">--</div></div>
+                <div class="info-item"><div class="info-label">PE(TTM)</div><div class="info-value" id="pe-${idx}">--</div></div>
+                <div class="info-item"><div class="info-label">PB</div><div class="info-value" id="pb-${idx}">--</div></div>
+                <div class="info-item"><div class="info-label">ROE</div><div class="info-value" id="roe-${idx}">--</div></div>
+                <div class="info-item"><div class="info-label">毛利率</div><div class="info-value" id="grossMargin-${idx}">--</div></div>
+              </div>
+            </div>
+
+            <!-- 利好/利空 -->
+            <div class="section">
+              <div class="section-title">⚡ 利好/利空因素</div>
+              <div id="bullBear-${idx}">
+                <div class="tags-container" id="bullTags-${idx}"></div>
+                <div class="tags-container" id="bearTags-${idx}" style="margin-top:8px;"></div>
+              </div>
+            </div>
+
+            <!-- AI 分析 -->
+            <div class="section">
+              <div class="section-title">🤖 AI 智能分析</div>
+              <div class="ai-text loading" id="aiText-${idx}">
+                点击"开始分析"按钮，AI 将为您生成详细的股票分析报告...
+              </div>
+              <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="btn-analyze-all" style="padding:6px 16px;font-size:13px;" onclick="analyzeStock(${idx})">🤖 开始分析</button>
+                <button class="btn-analyze-all" style="padding:6px 16px;font-size:13px;border-color:var(--gold);color:var(--gold);background:rgba(245,158,11,.12);" onclick="copyAnalysis(${idx})">📋 复制分析</button>
+                <button class="btn-analyze-all" style="padding:6px 16px;font-size:13px;border-color:#8b5cf6;color:#a78bfa;background:rgba(139,92,246,.12);" onclick="openDoubao(${idx})">🧠 大模型分析</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ==================== 加载股票行情 ====================
+async function loadStockQuote(code, idx) {
+  const prefix = getMarketPrefix(code);
+  const url = `${QT_API}${prefix}${code}`;
+
+  try {
+    const resp = await fetch(url);
+    const text = await resp.text();
+    const data = parseQuoteData(text, code);
+
+    if (data) {
+      // 存储行情数据到 stocksData（用于后续排序）
+      const stockIndex = stocksData.findIndex(s => s.stock_code === code);
+      if (stockIndex >= 0) {
+        if (!stocksData[stockIndex].quote) stocksData[stockIndex].quote = {};
+        stocksData[stockIndex].quote = data;
+      }
+    }
+  } catch(e) {
+    console.error('Quote error:', e);
+  }
+}
+
+// ==================== 解析行情数据 ====================
+function parseQuoteData(text, code) {
+  try {
+    const match = text.match(/="(.+)"/);
+    if (!match) return null;
+    const parts = match[1].split('~');
+    if (parts.length < 50) return null;
+
+    const price = parseFloat(parts[3]) || 0;
+    const yClose = parseFloat(parts[4]) || price;
+    const chg = price - yClose;
+    const chgPct = yClose > 0 ? (chg / yClose * 100) : 0;
+
+    return {
+      name: parts[1] || code,
+      price: parts[3] || '--',
+      open: parts[5] || '--',
+      close: parts[4] || '--',
+      high: parts[34] || '--',
+      low: parts[35] || '--',
+      preClose: parts[4] || '--',
+      chgPct: chgPct.toFixed(2),
+      chg: chg.toFixed(2),
+      volume: parts[6] || '--',
+      amount: parts[37] || '--',
+      pe: parts[39] || '--',
+      pb: parts[46] || '--',
+      mktCap: parts[45] || '--',
+      turnover: parts[38] || '--',
+      totalShares: parts[73] || '--',
+      floatShares: parts[72] || '--',
+    };
+  } catch(e) {
+    return null;
+  }
+}
+
+// ==================== 获取市场前缀 ====================
+function getMarketPrefix(code) {
+  if (code.startsWith('6') || code.startsWith('5')) return 'sh';
+  if (code.startsWith('4') || code.startsWith('8') || code.startsWith('9')) return 'bj';
+  return 'sz';
+}
+
+// ==================== 东方财富 secid ====================
+function getSecid(code) {
+  return code.startsWith('6') ? `1.${code}` : `0.${code}`;
+}
+
+// ==================== 基本面数据缓存 ====================
+let fundamentalCache = {};
+
+/* 歪枣网 Token 配置（登录 www.waizaowang.com 后从个人中心获取） */
+const WAIZAOWANG_TOKEN = 'c02e47a30efb3e831c22dbbffbadc09d';
+
+/* 从东方财富获取行业/估值/股本信息 (JSONP) */
+function fetchIndustryInfo(code) {
+  const secid = getSecid(code);
+  return new Promise((resolve) => {
+    const cb = 'ind_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+    const script = document.createElement('script');
+    script.src = `https://push2.eastmoney.com/api/qt/stock/get?secid=${secid}&ut=fa5fd1943c7b386f172d6893dbfba10b&fltt=2&invt=2&fields=f57,f58,f84,f85,f100,f116,f117,f127,f128,f160,f162,f167,f173&cb=${cb}`;
+    const timer = setTimeout(() => { resolve(null); delete window[cb]; if (document.body.contains(script)) document.body.removeChild(script); }, 6000);
+    window[cb] = (data) => {
+      clearTimeout(timer);
+      try { resolve(data && data.data ? data.data : null); } catch(e) { resolve(null); }
+      delete window[cb];
+      if (document.body.contains(script)) document.body.removeChild(script);
+    };
+    script.onerror = () => { clearTimeout(timer); resolve(null); if (document.body.contains(script)) document.body.removeChild(script); delete window[cb]; };
+    document.body.appendChild(script);
+  });
+}
+
+/* 从歪枣网获取地域板块信息（z52 字段 = 归属地域板块） */
+async function fetchRegionFromWaizaowang(code) {
+  if (!WAIZAOWANG_TOKEN) return null;
+  try {
+    const params = new URLSearchParams({
+      type: '1',
+      code: code,
+      fields: 'all',
+      export: '1',
+      token: WAIZAOWANG_TOKEN,
+      filter: ''
+    });
+    const resp = await fetch('http://api.waizaowang.com/doc/getBaseInfo', {
+      method: 'POST',
+      body: params
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    if (data.code !== 200 || !data.data || data.data.length === 0) return null;
+
+    // 取首条数据的 z52 字段（归属地域板块）
+    const row = data.data[0];
+    return row.z52 || null;
+  } catch (e) {
+    console.error('歪枣网地域获取失败:', code, e);
+    return null;
+  }
+}
+
+/* 获取股票所属区域 — 优先歪枣网，其次东方财富 f128 */
+async function fetchCompanyRegion(code) {
+  // 1. 优先调用歪枣网（返回准确的归属地域板块）
+  const wzRegion = await fetchRegionFromWaizaowang(code);
+  if (wzRegion) return wzRegion;
+
+  // 2. fallback：东方财富 f128（在 fetchIndustryInfo 中已带回）
+  // 此处不再单独请求注册地址接口（该接口已下线返回 9501）
+  return null;
+}
+
+/* 从东方财富获取财务指标 */
+async function fetchStockFinance(code) {
+  try {
+    const resp = await fetch(`https://datacenter-web.eastmoney.com/api/data/v1/get?sortColumns=REPORT_DATE&sortTypes=-1&pageSize=4&pageNumber=1&reportName=RPT_F10_FINANCE_MAINFINADATA&columns=SECURITY_CODE,REPORT_DATE,EPSJB,ROEJQ,TOTALOPERATEREVE,PARENTNETPROFIT,TOTALOPERATEREVETZ,PARENTNETPROFITTZ,XSMLL,BPS&filter=(SECURITY_CODE="${code}")&source=HSF10&client=PC`);
+    const data = await resp.json();
+    if (data && data.result && data.result.data) return data.result.data;
+    return null;
+  } catch(e) {
+    console.error('获取财务数据失败:', code, e);
+    return null;
+  }
+}
+
+/* 综合获取基本面数据 */
+async function fetchFundamentalData(code) {
+  if (fundamentalCache[code] && (Date.now() - fundamentalCache[code]._ts < 300000)) {
+    return fundamentalCache[code];
+  }
+  const result = { _ts: Date.now(), code, industry: null, finance: null };
+  try {
+    const [industryData, financeData, regionData] = await Promise.all([
+      fetchIndustryInfo(code).catch(() => null),
+      fetchStockFinance(code).catch(() => null),
+      fetchCompanyRegion(code).catch(() => null)
+    ]);
+    if (industryData) result.industry = industryData;
+    if (financeData) result.finance = financeData;
+    if (regionData) {
+      if (!result.industry) result.industry = {};
+      result.industry._region = regionData;
+    }
+  } catch(e) {
+    console.error('获取基本面数据失败:', code, e);
+  }
+  fundamentalCache[code] = result;
+  return result;
+}
+
+// ==================== 展开/收起卡片 ====================
+window.toggleCard = async function(idx) {
+  const panel = document.getElementById(`panel-${idx}`);
+  const icon = document.getElementById(`icon-${idx}`);
+  const wasExpanded = panel.classList.contains('expanded');
+  panel.classList.toggle('expanded');
+  icon.classList.toggle('expanded');
+
+  // 展开时若未分析过，自动触发一次 AI 分析
+  if (!wasExpanded) {
+    const aiTextEl = document.getElementById(`aiText-${idx}`);
+    if (aiTextEl && aiTextEl.textContent.includes('点击"开始分析"按钮')) {
+      analyzeStock(idx);
+    }
+  }
+};
+
+// ==================== 从 stockck1.0 数据库获取概念数据 ====================
+async function fetchConceptsFromStockCK(code) {
+  try {
+    const url = localStorage.getItem('supabase_url');
+    const key = localStorage.getItem('supabase_key');
+    if (!url || !key) return null;
+
+    const resp = await fetch(`${url}/rest/v1/stock_pool?code=eq.${code}&select=concept1,concept2&limit=1`, {
+      headers: {
+        'apikey': key,
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    if (data && data.length > 0) return data[0];
+    return null;
+  } catch(e) {
+    console.error('获取概念数据失败:', code, e);
+    return null;
+  }
+}
+
+// ==================== 分析单个股票 ====================
+window.analyzeStock = async function(idx) {
+  const stock = stocksData[idx];
+  if (!stock) return;
+
+  const code = stock.stock_code;
+  const name = stock.stock_name || code;
+
+  // 更新 AI 文本为加载状态
+  const aiTextEl = document.getElementById(`aiText-${idx}`);
+  aiTextEl.classList.add('loading');
+  aiTextEl.textContent = '🤖 AI 正在分析中，请稍候...';
+
+  try {
+    // 1. 并行获取行情 + 基本面数据 + stockck1.0 概念数据
+    const [quote, fundamental, concepts] = await Promise.all([
+      fetchDetailedQuote(code),
+      fetchFundamentalData(code),
+      fetchConceptsFromStockCK(code).catch(() => null)
+    ]);
+
+    // 把概念数据合并到 fundamental 中
+    if (concepts && fundamental) {
+      fundamental.concepts = concepts;
+    }
+
+    // 2. 更新基本面和财务数据
+    updateBasicInfo(idx, quote, fundamental);
+    updateFinanceInfo(idx, quote, fundamental);
+
+    // 3. 生成利好利空分析
+    const analysis = generateBullBearAnalysis(name, code, quote, fundamental);
+
+    // 4. 更新利好利空标签
+    updateBullBearTags(idx, analysis);
+
+    // 5. 生成 AI 分析文本
+    const aiText = generateAIAnalysis(name, code, quote, fundamental, analysis);
+    aiTextEl.classList.remove('loading');
+    aiTextEl.textContent = aiText;
+
+  } catch(e) {
+    console.error(`Analysis error [${name}]:`, e);
+    aiTextEl.classList.remove('loading');
+    aiTextEl.textContent = `❌ 【${name}】分析失败：${e.message || '未知错误'}\n\n请稍后重试。`;
+  }
+};
+
+// ==================== 获取详细行情 ====================
+async function fetchDetailedQuote(code) {
+  const prefix = getMarketPrefix(code);
+  const url = `${QT_API}${prefix}${code}`;
+
+  const resp = await fetch(url);
+  const text = await resp.text();
+  return parseQuoteData(text, code);
+}
+
+// ==================== 更新基本面信息 ====================
+function updateBasicInfo(idx, quote, fundamental) {
+  const ind = fundamental && fundamental.industry ? fundamental.industry : null;
+
+  // 概念1 / 概念2 — 优先从 stockck1.0 数据库读取，其次东方财富 f127/f128
+  const concept1El = document.getElementById(`concept1-${idx}`);
+  const concept2El = document.getElementById(`concept2-${idx}`);
+
+  const ckConcepts = fundamental && fundamental.concepts ? fundamental.concepts : null;
+
+  if (ckConcepts && ckConcepts.concept1) {
+    concept1El.textContent = ckConcepts.concept1;
+  } else if (ind && ind.f127) {
+    concept1El.textContent = ind.f127;
+  } else {
+    concept1El.textContent = '待获取';
+  }
+
+  if (ckConcepts && ckConcepts.concept2) {
+    concept2El.textContent = ckConcepts.concept2;
+  } else if (ind && ind.f128) {
+    concept2El.textContent = ind.f128;
+  } else {
+    concept2El.textContent = '--';
+  }
+
+  // 总股本 — 优先腾讯行情 parts[74]，其次东方财富 f84
+  let totalShare = '--';
+  if (quote && quote.totalShares && quote.totalShares !== '--') {
+    const ts = parseFloat(quote.totalShares);
+    if (!isNaN(ts)) totalShare = (ts / 100000000).toFixed(2) + '亿';
+  } else if (ind && ind.f84) {
+    totalShare = (ind.f84 / 100000000).toFixed(2) + '亿';
+  }
+  document.getElementById(`totalShare-${idx}`).textContent = totalShare;
+
+  // 流通股 — 优先腾讯行情 parts[75]，其次东方财富 f85
+  let floatShare = '--';
+  if (quote && quote.floatShares && quote.floatShares !== '--') {
+    const fs = parseFloat(quote.floatShares);
+    if (!isNaN(fs)) floatShare = (fs / 100000000).toFixed(2) + '亿';
+  } else if (ind && ind.f85) {
+    floatShare = (ind.f85 / 100000000).toFixed(2) + '亿';
+  }
+  document.getElementById(`floatShare-${idx}`).textContent = floatShare;
+
+  // 总市值（优先东方财富 f116，其次行情API）
+  let mktCap = '--';
+  if (ind && ind.f116) {
+    mktCap = ind.f116 >= 1e12 ? (ind.f116 / 1e12).toFixed(2) + '万亿' : (ind.f116 / 1e8).toFixed(0) + '亿';
+  } else if (quote && quote.mktCap && quote.mktCap !== '--') {
+    mktCap = formatNumber(quote.mktCap * 10000) + '亿';
+  }
+  document.getElementById(`mktCap-${idx}`).textContent = mktCap;
+
+  // 所属区域 — 优先歪枣网 _region（准确的归属地域板块），其次东方财富 f128
+  const regionEl = document.getElementById(`region-${idx}`);
+  if (ind && ind._region) {
+    regionEl.textContent = ind._region;
+  } else if (ind && ind.f128) {
+    regionEl.textContent = ind.f128;
+  } else {
+    regionEl.textContent = '--';
+  }
+}
+
+// ==================== 更新财务信息 ====================
+function updateFinanceInfo(idx, quote, fundamental) {
+  const ind = fundamental && fundamental.industry ? fundamental.industry : null;
+  const fin = fundamental && fundamental.finance && fundamental.finance.length > 0 ? fundamental.finance[0] : null;
+
+  // 营业收入（元→亿/万）
+  const revenueEl = document.getElementById(`revenue-${idx}`);
+  if (fin && fin.TOTALOPERATEREVE != null) {
+    const rev = parseFloat(fin.TOTALOPERATEREVE);
+    if (Math.abs(rev) >= 1e8) {
+      revenueEl.textContent = (rev / 1e8).toFixed(2) + '亿';
+    } else if (Math.abs(rev) >= 1e4) {
+      revenueEl.textContent = (rev / 1e4).toFixed(2) + '万';
+    } else {
+      revenueEl.textContent = rev.toFixed(2) + '元';
+    }
+  } else {
+    revenueEl.textContent = '--';
+  }
+
+  // 净利润（元→亿/万）
+  const profitEl = document.getElementById(`profit-${idx}`);
+  if (fin && fin.PARENTNETPROFIT != null) {
+    const prof = parseFloat(fin.PARENTNETPROFIT);
+    if (Math.abs(prof) >= 1e8) {
+      profitEl.textContent = (prof / 1e8).toFixed(2) + '亿';
+    } else if (Math.abs(prof) >= 1e4) {
+      profitEl.textContent = (prof / 1e4).toFixed(2) + '万';
+    } else {
+      profitEl.textContent = prof.toFixed(2) + '元';
+    }
+  } else {
+    profitEl.textContent = '--';
+  }
+
+  // PE(TTM) — 优先东方财富动态PE f160，其次行情API
+  const peEl = document.getElementById(`pe-${idx}`);
+  let peVal = null;
+  if (ind && ind.f160 != null && ind.f160 !== 0) {
+    peVal = parseFloat(ind.f160);
+  } else if (quote && quote.pe && quote.pe !== '--') {
+    peVal = parseFloat(quote.pe);
+  }
+  if (peVal != null && !isNaN(peVal)) {
+    peEl.textContent = peVal.toFixed(2) + (peVal < 0 ? '(亏损)' : '');
+    peEl.classList.remove('profit', 'loss');
+    if (peVal > 0) {
+      peEl.classList.add(peVal > 30 ? 'loss' : 'profit');
+    }
+  } else {
+    peEl.textContent = '--';
+  }
+
+  // PB — 优先东方财富 f167，其次行情API
+  const pbEl = document.getElementById(`pb-${idx}`);
+  let pbVal = null;
+  if (ind && ind.f167 != null && ind.f167 !== 0) {
+    pbVal = parseFloat(ind.f167);
+  } else if (quote && quote.pb && quote.pb !== '--') {
+    pbVal = parseFloat(quote.pb);
+  }
+  pbEl.textContent = pbVal != null && !isNaN(pbVal) ? pbVal.toFixed(2) : '--';
+
+  // ROE — 优先东方财富 f173，其次财务数据 ROEJQ
+  const roeEl = document.getElementById(`roe-${idx}`);
+  let roeVal = null;
+  if (ind && ind.f173 != null && ind.f173 !== 0) {
+    roeVal = parseFloat(ind.f173);
+  } else if (fin && fin.ROEJQ != null) {
+    roeVal = parseFloat(fin.ROEJQ);
+  }
+  if (roeVal != null && !isNaN(roeVal)) {
+    roeEl.textContent = roeVal.toFixed(2) + '%';
+    roeEl.classList.remove('profit', 'loss');
+    if (roeVal > 15) roeEl.classList.add('profit');
+    else if (roeVal < 5) roeEl.classList.add('loss');
+  } else {
+    roeEl.textContent = '--';
+  }
+
+  // 毛利率
+  const gmEl = document.getElementById(`grossMargin-${idx}`);
+  if (fin && fin.XSMLL != null) {
+    gmEl.textContent = parseFloat(fin.XSMLL).toFixed(2) + '%';
+  } else {
+    gmEl.textContent = '--';
+  }
+}
+
+// ==================== 生成利好利空分析 ====================
+function generateBullBearAnalysis(name, code, quote, fundamental) {
+  const analysis = {
+    bull: [],
+    bear: [],
+    neutral: []
+  };
+
+  if (!quote) return analysis;
+
+  const chgPct = parseFloat(quote.chgPct) || 0;
+
+  // 优先使用东方财富估值数据
+  const ind = fundamental && fundamental.industry ? fundamental.industry : null;
+  let pe = 0, pb = 0, roe = 0;
+  if (ind) {
+    pe = (ind.f160 != null && ind.f160 !== 0) ? parseFloat(ind.f160) : (quote.pe && quote.pe !== '--' ? parseFloat(quote.pe) : 0);
+    pb = (ind.f167 != null && ind.f167 !== 0) ? parseFloat(ind.f167) : (quote.pb && quote.pb !== '--' ? parseFloat(quote.pb) : 0);
+    roe = (ind.f173 != null && ind.f173 !== 0) ? parseFloat(ind.f173) : 0;
+  } else {
+    pe = (quote.pe && quote.pe !== '--') ? parseFloat(quote.pe) : 0;
+    pb = (quote.pb && quote.pb !== '--') ? parseFloat(quote.pb) : 0;
+  }
+
+  // 基于涨跌幅分析
+  if (chgPct > 5) {
+    analysis.bull.push('当日涨幅较大(+' + chgPct.toFixed(2) + '%)');
+  } else if (chgPct < -5) {
+    analysis.bear.push('当日跌幅较大(' + chgPct.toFixed(2) + '%)');
+  }
+
+  // 基于估值分析
+  if (pe > 0 && pe < 15) {
+    analysis.bull.push('PE估值较低(' + pe.toFixed(2) + ')，具备安全边际');
+  } else if (pe > 50 || pe < 0) {
+    analysis.bear.push('PE估值' + (pe < 0 ? '亏损' : '偏高(' + pe.toFixed(2) + ')') + '，注意风险');
+  }
+
+  if (pb > 0 && pb < 1.5) {
+    analysis.bull.push('PB较低(' + pb.toFixed(2) + ')，破净或接近破净');
+  } else if (pb > 5) {
+    analysis.bear.push('PB偏高(' + pb.toFixed(2) + ')，估值溢价明显');
+  }
+
+  // 基于ROE分析
+  if (roe > 15) {
+    analysis.bull.push('ROE优秀(' + roe.toFixed(2) + '%)，盈利能力强');
+  } else if (roe > 0 && roe < 5) {
+    analysis.bear.push('ROE较低(' + roe.toFixed(2) + '%)，盈利能力偏弱');
+  }
+
+  // 基于价格位置分析（使用当日最高最低）
+  const price = parseFloat(quote.price) || 0;
+  const high = parseFloat(quote.high) || 0;
+  const low = parseFloat(quote.low) || 0;
+
+  if (high > 0 && low > 0 && high !== low) {
+    const position = ((price - low) / (high - low)) * 100;
+    if (position < 20) {
+      analysis.bull.push('当前价格接近日内低点，存在反弹空间');
+    } else if (position > 80) {
+      analysis.bear.push('当前价格接近日内高点，注意回落风险');
+    }
+  }
+
+  // 财务增速分析
+  const fin = fundamental && fundamental.finance && fundamental.finance.length > 0 ? fundamental.finance[0] : null;
+  if (fin) {
+    if (fin.TOTALOPERATEREVETZ != null && parseFloat(fin.TOTALOPERATEREVETZ) > 20) {
+      analysis.bull.push('营收增速强劲(+' + parseFloat(fin.TOTALOPERATEREVETZ).toFixed(2) + '%)');
+    } else if (fin.TOTALOPERATEREVETZ != null && parseFloat(fin.TOTALOPERATEREVETZ) < -10) {
+      analysis.bear.push('营收增速下滑(' + parseFloat(fin.TOTALOPERATEREVETZ).toFixed(2) + '%)');
+    }
+    if (fin.PARENTNETPROFITTZ != null && parseFloat(fin.PARENTNETPROFITTZ) > 30) {
+      analysis.bull.push('净利润增速优秀(+' + parseFloat(fin.PARENTNETPROFITTZ).toFixed(2) + '%)');
+    } else if (fin.PARENTNETPROFITTZ != null && parseFloat(fin.PARENTNETPROFITTZ) < -20) {
+      analysis.bear.push('净利润大幅下滑(' + parseFloat(fin.PARENTNETPROFITTZ).toFixed(2) + '%)');
+    }
+  }
+
+  // 如果没有明确的利好利空，添加中性观点
+  if (analysis.bull.length === 0 && analysis.bear.length === 0) {
+    analysis.neutral.push('当前无明显利好利空因素，建议持续关注');
+  }
+
+  return analysis;
+}
+
+// ==================== 更新利好利空标签 ====================
+function updateBullBearTags(idx, analysis) {
+  const bullContainer = document.getElementById(`bullTags-${idx}`);
+  const bearContainer = document.getElementById(`bearTags-${idx}`);
+
+  bullContainer.innerHTML = analysis.bull.length > 0
+    ? '<span style="font-size:12px;color:var(--muted);margin-right:8px;">🔴 利好：</span>' +
+      analysis.bull.map(t => `<span class="tag bull">${t}</span>`).join('')
+    : '';
+
+  bearContainer.innerHTML = analysis.bear.length > 0
+    ? '<span style="font-size:12px;color:var(--muted);margin-right:8px;">🟢 利空：</span>' +
+      analysis.bear.map(t => `<span class="tag bear">${t}</span>`).join('')
+    : '';
+
+  // 中性标签
+  if (analysis.neutral.length > 0) {
+    bearContainer.innerHTML += analysis.neutral.map(t => `<span class="tag neutral">${t}</span>`).join('');
+  }
+}
+
+// ==================== 生成 AI 分析文本 ====================
+function generateAIAnalysis(name, code, quote, fundamental, analysis) {
+  const ind = fundamental && fundamental.industry ? fundamental.industry : null;
+  const fin = fundamental && fundamental.finance && fundamental.finance.length > 0 ? fundamental.finance[0] : null;
+
+  // 优先使用东方财富估值
+  let pe = 0, pb = 0, roe = 0;
+  if (ind) {
+    pe = (ind.f160 != null && ind.f160 !== 0) ? parseFloat(ind.f160) : (quote.pe && quote.pe !== '--' ? parseFloat(quote.pe) : 0);
+    pb = (ind.f167 != null && ind.f167 !== 0) ? parseFloat(ind.f167) : (quote.pb && quote.pb !== '--' ? parseFloat(quote.pb) : 0);
+    roe = (ind.f173 != null && ind.f173 !== 0) ? parseFloat(ind.f173) : 0;
+  } else {
+    pe = (quote.pe && quote.pe !== '--') ? parseFloat(quote.pe) : 0;
+    pb = (quote.pb && quote.pb !== '--') ? parseFloat(quote.pb) : 0;
+  }
+
+  let text = `【${name}(${code}) AI 智能分析报告】\n`;
+  text += `${'─'.repeat(40)}\n\n`;
+
+  // 1. 行情概览
+  text += `📊 行情概览\n`;
+  text += `  当前价：${quote.price}元  ${parseFloat(quote.chgPct) >= 0 ? '📈' : '📉'} ${quote.chgPct}%\n`;
+  text += `  今开：${quote.open}  最高：${quote.high}  最低：${quote.low}\n`;
+  text += `  成交量：${formatVolume(quote.volume)}  成交额：${formatAmount(quote.amount)}\n\n`;
+
+  // 2. 估值分析
+  text += `💰 估值分析\n`;
+  text += `  PE(TTM)：${pe ? pe.toFixed(2) + (pe < 0 ? '(亏损)' : '') : '--'}  `;
+  if (pe > 0 && pe < 15) text += '✅ 低估值';
+  else if (pe > 30 || pe < 0) text += '⚠️ ' + (pe < 0 ? '亏损中' : '高估值');
+  else text += '➖ 中等估值';
+  text += `\n  PB：${pb ? pb.toFixed(2) : '--'}  `;
+  if (pb > 0 && pb < 1.5) text += '✅ 低市净率';
+  else if (pb > 5) text += '⚠️ 高市净率';
+  else text += '➖ 中等市净率';
+  text += `\n  ROE：${roe ? roe.toFixed(2) + '%' : '--'}  `;
+  if (roe > 15) text += '✅ 盈利能力强';
+  else if (roe > 0 && roe < 5) text += '⚠️ 盈利能力偏弱';
+  else text += '➖ 中等水平';
+  text += `\n\n`;
+
+  // 3. 财务速览
+  if (fin) {
+    text += `📈 财务速览（最新报告期）\n`;
+    if (fin.TOTALOPERATEREVE != null) {
+      const rev = parseFloat(fin.TOTALOPERATEREVE);
+      let revStr;
+      if (Math.abs(rev) >= 1e8) revStr = (rev / 1e8).toFixed(2) + '亿';
+      else if (Math.abs(rev) >= 1e4) revStr = (rev / 1e4).toFixed(2) + '万';
+      else revStr = rev.toFixed(2) + '元';
+      text += `  营收：${revStr}`;
+      if (fin.TOTALOPERATEREVETZ != null) text += `  同比${parseFloat(fin.TOTALOPERATEREVETZ) >= 0 ? '+' : ''}${parseFloat(fin.TOTALOPERATEREVETZ).toFixed(2)}%`;
+      text += `\n`;
+    }
+    if (fin.PARENTNETPROFIT != null) {
+      const prof = parseFloat(fin.PARENTNETPROFIT);
+      let profStr;
+      if (Math.abs(prof) >= 1e8) profStr = (prof / 1e8).toFixed(2) + '亿';
+      else if (Math.abs(prof) >= 1e4) profStr = (prof / 1e4).toFixed(2) + '万';
+      else profStr = prof.toFixed(2) + '元';
+      text += `  净利润：${profStr}`;
+      if (fin.PARENTNETPROFITTZ != null) text += `  同比${parseFloat(fin.PARENTNETPROFITTZ) >= 0 ? '+' : ''}${parseFloat(fin.PARENTNETPROFITTZ).toFixed(2)}%`;
+      text += `\n`;
+    }
+    if (fin.XSMLL != null) text += `  毛利率：${parseFloat(fin.XSMLL).toFixed(2)}%\n`;
+    text += `\n`;
+  }
+
+  // 4. 利好因素
+  if (analysis.bull.length > 0) {
+    text += `🔴 利好因素\n`;
+    analysis.bull.forEach(t => { text += `  • ${t}\n`; });
+    text += `\n`;
+  }
+
+  // 5. 利空因素
+  if (analysis.bear.length > 0) {
+    text += `🟢 利空因素\n`;
+    analysis.bear.forEach(t => { text += `  • ${t}\n`; });
+    text += `\n`;
+  }
+
+  // 6. 投资建议
+  text += `💡 投资建议\n`;
+  const score = calculateScore(quote, fundamental, analysis);
+  text += `  综合评分：${'★'.repeat(Math.min(score, 5))}${'☆'.repeat(5 - Math.min(score, 5))} (${score}/5)\n`;
+  text += `  建议：`;
+  if (score >= 4) {
+    text += `积极关注，可考虑逢低布局。建议设置止损位，控制仓位风险。`;
+  } else if (score >= 3) {
+    text += `中性偏多，可适量关注。建议等待更明确的信号再行决策。`;
+  } else if (score >= 2) {
+    text += `谨慎观望，暂不建议重仓。建议等待基本面改善或估值回归。`;
+  } else {
+    text += `暂时回避，风险大于机会。建议密切关注风险因素的演变。`;
+  }
+  text += `\n\n`;
+
+  text += `${'─'.repeat(40)}\n`;
+  text += `⚠️ 免责声明：以上分析仅供参考，不构成投资建议。股市有风险，投资需谨慎。`;
+
+  return text;
+}
+
+// ==================== 计算综合评分 ====================
+function calculateScore(quote, fundamental, analysis) {
+  let score = 3; // 基础分
+
+  const chgPct = parseFloat(quote.chgPct) || 0;
+
+  // 优先使用东方财富估值
+  const ind = fundamental && fundamental.industry ? fundamental.industry : null;
+  let pe = 0, pb = 0, roe = 0;
+  if (ind) {
+    pe = (ind.f160 != null && ind.f160 !== 0) ? parseFloat(ind.f160) : (quote.pe && quote.pe !== '--' ? parseFloat(quote.pe) : 0);
+    pb = (ind.f167 != null && ind.f167 !== 0) ? parseFloat(ind.f167) : (quote.pb && quote.pb !== '--' ? parseFloat(quote.pb) : 0);
+    roe = (ind.f173 != null && ind.f173 !== 0) ? parseFloat(ind.f173) : 0;
+  } else {
+    pe = (quote.pe && quote.pe !== '--') ? parseFloat(quote.pe) : 0;
+    pb = (quote.pb && quote.pb !== '--') ? parseFloat(quote.pb) : 0;
+  }
+
+  // 涨跌因素
+  if (chgPct > 3) score += 0.5;
+  if (chgPct < -3) score -= 0.5;
+
+  // 估值因素
+  if (pe > 0 && pe < 20) score += 0.5;
+  if (pe > 50 || pe < 0) score -= 0.5;
+  if (pb > 0 && pb < 2) score += 0.5;
+  if (pb > 5) score -= 0.5;
+
+  // ROE因素
+  if (roe > 15) score += 0.5;
+  if (roe > 0 && roe < 5) score -= 0.5;
+
+  // 财务增速因素
+  const fin = fundamental && fundamental.finance && fundamental.finance.length > 0 ? fundamental.finance[0] : null;
+  if (fin) {
+    if (fin.TOTALOPERATEREVETZ != null && parseFloat(fin.TOTALOPERATEREVETZ) > 20) score += 0.3;
+    if (fin.PARENTNETPROFITTZ != null && parseFloat(fin.PARENTNETPROFITTZ) > 30) score += 0.3;
+    if (fin.TOTALOPERATEREVETZ != null && parseFloat(fin.TOTALOPERATEREVETZ) < -10) score -= 0.3;
+    if (fin.PARENTNETPROFITTZ != null && parseFloat(fin.PARENTNETPROFITTZ) < -20) score -= 0.3;
+  }
+
+  // 利好利空因素
+  score += analysis.bull.length * 0.5;
+  score -= analysis.bear.length * 0.5;
+
+  return Math.max(1, Math.min(5, Math.round(score)));
+}
+
+// ==================== 搜索定位 ====================
+window.handleSearch = function() {
+  const keyword = document.getElementById('stockSearch').value.trim().toLowerCase();
+  // 清除之前的高亮
+  document.querySelectorAll('.search-highlight').forEach(el => el.classList.remove('search-highlight'));
+  if (!keyword) return;
+
+  // 实时高亮匹配的股票卡片
+  stocksData.forEach((stock, idx) => {
+    const name = (stock.stock_name || '').toLowerCase();
+    const code = (stock.stock_code || '').toLowerCase();
+    const card = document.getElementById(`card-${idx}`);
+    if (card && (name.includes(keyword) || code.includes(keyword))) {
+      card.classList.add('search-highlight');
+    }
+  });
+};
+
+window.scrollToFirstMatch = function() {
+  const keyword = document.getElementById('stockSearch').value.trim().toLowerCase();
+  if (!keyword) return;
+
+  // 清除之前的高亮
+  document.querySelectorAll('.search-highlight').forEach(el => el.classList.remove('search-highlight'));
+
+  // 查找第一个匹配项
+  for (let i = 0; i < stocksData.length; i++) {
+    const stock = stocksData[i];
+    const name = (stock.stock_name || '').toLowerCase();
+    const code = (stock.stock_code || '').toLowerCase();
+    if (name.includes(keyword) || code.includes(keyword)) {
+      const card = document.getElementById(`card-${i}`);
+      if (card) {
+        card.classList.add('search-highlight');
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // 自动展开卡片
+        const panel = document.getElementById(`panel-${i}`);
+        const icon = document.getElementById(`icon-${i}`);
+        if (panel && !panel.classList.contains('expanded')) {
+          panel.classList.add('expanded');
+          if (icon) icon.classList.add('expanded');
+        }
+      }
+      break;
+    }
+  }
+};
+
+// ==================== 一键分析全部 ====================
+window.analyzeAll = async function() {
+  const btn = document.getElementById('btnAnalyzeAll');
+  btn.disabled = true;
+  btn.textContent = '🔄 分析中...';
+
+  const progressContainer = document.getElementById('progressContainer');
+  progressContainer.style.display = 'block';
+  const total = stocksData.length;
+  const failedStocks = [];
+
+  for (let i = 0; i < total; i++) {
+    const stock = stocksData[i];
+    const name = stock ? (stock.stock_name || stock.stock_code) : `#${i}`;
+
+    // 展开卡片
+    const panel = document.getElementById(`panel-${i}`);
+    const icon = document.getElementById(`icon-${i}`);
+    if (panel && !panel.classList.contains('expanded')) {
+      panel.classList.add('expanded');
+      if (icon) icon.classList.add('expanded');
+    }
+
+    // 分析（单只失败不中断整体）
+    try {
+      await analyzeStock(i);
+    } catch (e) {
+      console.error(`分析失败 [${name}]:`, e);
+      failedStocks.push(name);
+      // 在卡片内也写入失败提示
+      const aiTextEl = document.getElementById(`aiText-${i}`);
+      if (aiTextEl) {
+        aiTextEl.classList.remove('loading');
+        aiTextEl.textContent = `❌ 【${name}】分析失败：${e.message || '未知错误'}\n\n请稍后重试。`;
+      }
+    }
+
+    // 更新进度
+    const progress = ((i + 1) / total) * 100;
+    document.getElementById('progressFill').style.width = progress + '%';
+    document.getElementById('progressText').textContent = `正在分析... (${i + 1}/${total})`;
+  }
+
+  progressContainer.style.display = 'none';
+  btn.disabled = false;
+  btn.textContent = '🤖 一键分析全部';
+
+  if (failedStocks.length === 0) {
+    alert(`✅ 已完成全部 ${total} 只股票的分析！`);
+  } else {
+    alert(`⚠️ 分析完成：成功 ${total - failedStocks.length} 只，失败 ${failedStocks.length} 只。\n\n失败股票：\n${failedStocks.join('、')}`);
+  }
+};
+
+// ==================== 复制分析 ====================
+window.copyAnalysis = function(idx) {
+  const aiText = document.getElementById(`aiText-${idx}`).textContent;
+  navigator.clipboard.writeText(aiText).then(() => {
+    alert('✅ 分析内容已复制到剪贴板！');
+  }).catch(() => {
+    alert('❌ 复制失败，请手动复制');
+  });
+};
+
+// ==================== 大模型分析（跳转豆包） ====================
+window.openDoubao = async function(idx) {
+  const stock = stocksData[idx];
+  if (!stock) return;
+  const code = stock.stock_code;
+  const name = stock.stock_name || code;
+  const quote = stock.quote || {};
+  const chgPct = quote.chgPct != null ? parseFloat(quote.chgPct) : 0;
+  const price = quote.price || '--';
+
+  // 实时获取概念数据
+  const concepts = await fetchConceptsFromStockCK(code).catch(() => null);
+  const fundamental = await fetchFundamentalData(code).catch(() => null);
+
+  const concept1 = concepts && concepts.concept1 ? concepts.concept1 : '';
+  const concept2 = concepts && concepts.concept2 ? concepts.concept2 : '';
+  const ind = fundamental && fundamental.industry ? fundamental.industry : {};
+  const region = concept2 || ind.f128 || '';
+  const sector = concept1 || ind.f127 || '';
+
+  const prompt = `请对【${name}(${code})】进行全面的股票分析，当前价格${price}元，涨跌幅${chgPct >= 0 ? '+' : ''}${chgPct.toFixed(2)}%。${region ? '所属区域：' + region + '。' : ''}${sector ? '所属板块/概念：' + sector + '。' : ''}\n\n请按以下维度展开分析：\n1. 技术面分析（K线形态、趋势判断、支撑/压力位）\n2. 基本面评估（所属板块、利好利空信息、估值是否合理、业绩预期）\n3. 资金面与市场情绪分析\n4. 短期走势预判与风险提示\n5. 操作建议（买入/持有/卖出，仓位建议）\n6. 股票所属区域`;
+
+  navigator.clipboard.writeText(prompt).then(() => {
+    window.open('https://www.doubao.com/', '_blank');
+  }).catch(() => {
+    alert('❌ 复制失败，请手动复制提示词');
+  });
+};
+
+// ==================== 工具函数 ====================
+function formatNumber(num) {
+  if (!num || isNaN(num)) return '--';
+  if (num >= 100000000) return (num / 100000000).toFixed(2);
+  if (num >= 10000) return (num / 10000).toFixed(2);
+  return num.toFixed(2);
+}
+
+function formatVolume(vol) {
+  if (!vol || vol === '--') return '--';
+  const num = parseFloat(vol);
+  if (isNaN(num)) return '--';
+  if (num >= 100000000) return (num / 100000000).toFixed(2) + '亿股';
+  if (num >= 10000) return (num / 10000).toFixed(2) + '万股';
+  return num + '股';
+}
+
+function formatAmount(amt) {
+  if (!amt || amt === '--') return '--';
+  const num = parseFloat(amt);
+  if (isNaN(num)) return '--';
+  if (num >= 100000000) return (num / 100000000).toFixed(2) + '亿元';
+  if (num >= 10000) return (num / 10000).toFixed(2) + '万元';
+  return num + '元';
+}
+
+// ==================== 添加股票（弹窗） ====================
+window.showAddStockModal = function() {
+  document.getElementById('addStockModal').classList.add('show');
+  document.getElementById('addStockCode').value = '';
+  document.getElementById('addStockName').value = '';
+  document.getElementById('addStockCode').focus();
+};
+
+window.hideAddStockModal = function() {
+  document.getElementById('addStockModal').classList.remove('show');
+};
+
+window.confirmAddStock = async function() {
+  const code = document.getElementById('addStockCode').value.trim();
+  const name = document.getElementById('addStockName').value.trim();
+
+  if (!code) {
+    alert('请输入股票代码');
+    return;
+  }
+
+  // 统一去除市场前缀
+  const cleanCode = code.replace(/^(sh|sz|bj)/i, '');
+
+  if (stocksData.some(s => s.stock_code === cleanCode)) {
+    alert('该股票已存在');
+    return;
+  }
+
+  const newStock = {
+    stock_code: cleanCode,
+    stock_name: name || cleanCode,
+    isFocus: true,
+    quote: null,
+    fundamental: null
+  };
+
+  stocksData.unshift(newStock);
+  document.getElementById('statsInfo').textContent = `共 ${stocksData.length} 只股票`;
+  hideAddStockModal();
+
+  // 重新渲染并自动加载行情数据
+  renderStocks();
+};
+
+// ==================== 代码/名称互查（JSONP方式，参考index.html） ====================
+let _addStockTimer = null;
+
+// 代码输入防抖自动查名称
+window.onAddCodeInput = function() {
+  clearTimeout(_addStockTimer);
+  const code = document.getElementById('addStockCode').value.trim();
+  if (/^\d{6}$/.test(code)) {
+    _addStockTimer = setTimeout(() => autoFillNameByCode(), 600);
+  }
+};
+
+// 腾讯行情API - JSONP获取名称（参考index.html fetchQuoteTencent）
+function fetchQuoteTencentJsonp(code) {
+  return new Promise(resolve => {
+    const sym = code.startsWith('6') || code.startsWith('688') ? 'sh' + code : 'sz' + code;
+    const script = document.createElement('script');
+    const timer = setTimeout(() => {
+      if (document.body.contains(script)) document.body.removeChild(script);
+      resolve(null);
+    }, 6000);
+
+    script.onload = () => {
+      clearTimeout(timer);
+      try {
+        const varName = 'v_' + sym;
+        const raw = window[varName];
+        if (raw) {
+          const parts = raw.split('~');
+          resolve({ name: parts[1] || code });
+        } else resolve(null);
+      } catch(e) { resolve(null); }
+      if (document.body.contains(script)) document.body.removeChild(script);
+    };
+    script.onerror = () => { clearTimeout(timer); resolve(null); };
+    script.src = `https://qt.gtimg.cn/q=${sym}`;
+    document.body.appendChild(script);
+  });
+}
+
+// 东方财富搜索API - JSONP获取代码（参考index.html searchStockCode）
+function searchStockCodeJsonp(name) {
+  return new Promise(resolve => {
+    const cb = '_ef_search_' + Date.now();
+    const script = document.createElement('script');
+    const timer = setTimeout(() => {
+      delete window[cb];
+      if (document.body.contains(script)) document.body.removeChild(script);
+      resolve(null);
+    }, 6000);
+
+    window[cb] = function(data) {
+      clearTimeout(timer);
+      if (document.body.contains(script)) document.body.removeChild(script);
+      delete window[cb];
+      try {
+        const items = data && data.QuotationCodeTable && data.QuotationCodeTable.Data;
+        if (items && items.length) {
+          const exact = items.find(x => x.Name === name);
+          const hit = exact || items[0];
+          const raw = hit.Code || '';
+          const code = raw.replace(/^[A-Za-z]+/, '').trim();
+          resolve({ name: hit.Name || name, code });
+        } else resolve(null);
+      } catch(e) { resolve(null); }
+    };
+
+    const enc = encodeURIComponent(name);
+    script.src = `https://searchapi.eastmoney.com/api/suggest/get?input=${enc}&type=14&token=D43BF722C8E33BDC906FB84D85E326284&count=5&cb=${cb}`;
+    script.onerror = () => { clearTimeout(timer); resolve(null); if (document.body.contains(script)) document.body.removeChild(script); delete window[cb]; };
+    document.body.appendChild(script);
+  });
+}
+
+// 输入代码 → 自动查名称
+window.autoFillNameByCode = async function() {
+  const codeInput = document.getElementById('addStockCode');
+  const nameInput = document.getElementById('addStockName');
+  const code = codeInput.value.trim();
+  if (!code || !/^\d{6}$/.test(code) || nameInput.value.trim()) return;
+
+  const q = await fetchQuoteTencentJsonp(code);
+  if (q && q.name) {
+    nameInput.value = q.name;
+  }
+};
+
+// 输入名称 → 自动查代码
+window.autoFillCodeByName = async function() {
+  const codeInput = document.getElementById('addStockCode');
+  const nameInput = document.getElementById('addStockName');
+  const name = nameInput.value.trim();
+  if (!name || codeInput.value.trim()) return;
+
+  const result = await searchStockCodeJsonp(name);
+  if (result && result.code) {
+    codeInput.value = result.code;
+    nameInput.value = result.name; // 用标准名称覆盖
+  }
+};
+</script>
+
+</body>
+</html>

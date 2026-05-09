@@ -16,6 +16,39 @@
             background: #5c6bc0;
             min-height: 100vh;
             padding: 20px;
+            padding-top: 56px;
+        }
+
+        /* 全局导航 */
+        .global-nav {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            background: rgba(30,35,54,0.95);
+            border-bottom: 1px solid rgba(58,63,78,0.5);
+            padding: 8px 16px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+            font-size: 13px;
+            z-index: 10000;
+        }
+        .global-nav .nav-item {
+            color: #93c5fd;
+            text-decoration: none;
+            padding: 4px 10px;
+            border-radius: 6px;
+            transition: all .2s;
+            white-space: nowrap;
+        }
+        .global-nav .nav-item:hover {
+            background: rgba(59,130,246,.15);
+            color: #fff;
+        }
+        .global-nav .nav-item.current {
+            background: rgba(59,130,246,.25);
+            color: #fff;
+            font-weight: 600;
         }
 
         .container {
@@ -974,27 +1007,25 @@
     </style>
 </head>
 <body>
+    <!-- 全局导航 -->
+    <div class="global-nav">
+      <a href="index.html" target="_blank" class="nav-item current">📊 首页</a>
+      <a href="login.html" target="_blank" class="nav-item">🔐 登录</a>
+      <a href="stockck1.0.html" target="_blank" class="nav-item">📁 股票池</a>
+      <a href="stockcle.html" target="_blank" class="nav-item">🧹 清列表</a>
+      <a href="stockfx-v2.html" target="_blank" class="nav-item">📈 v2分析</a>
+      <a href="stockai-analysis.html" target="_blank" class="nav-item">🤖 AI分析</a>
+    </div>
+
     <div class="container">
         <div class="header">
             <h1>📈 A股股票信息管理</h1>
             <div class="header-actions">
-                <a href="stockck1.0.html" class="btn" style="background:#0e7490;color:white;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">📋 股票池</a>
-                <a href="stockfx-v2.html" class="btn" style="background:#667eea;color:white;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">📊 股票分析</a>
-                <a href="stockcle.html" class="btn" style="background:#f59e0b;color:white;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">🗑️ 清仓股票</a>
                 <div class="global-search">
                     <input type="text" id="globalSearch" placeholder="搜索股票名称/代码/备注...">
                     <button type="button" class="search-btn" onclick="doSearch()">🔍</button>
                     <div class="search-results" id="searchResults"></div>
                 </div>
-                <button class="realtime-toggle" id="realtimeToggle" onclick="toggleRealtime()">
-                    <span class="realtime-indicator"></span>
-                    <span id="realtimeLabel">实时订阅</span>
-                </button>
-                <button class="btn" style="background:#3b82f6;color:white;" onclick="exportStockData()" title="导出当前股票数据为 JSON 文件">📥 导出数据</button>
-                <label class="btn" style="background:#22c55e;color:white;cursor:pointer;" title="从 JSON 文件导入股票数据">
-                    📤 导入数据
-                    <input type="file" accept=".json" style="display:none;" onchange="importStockData(this.files[0])">
-                </label>
                 <button class="btn" style="background:linear-gradient(135deg,#6366f1,#a855f7);color:white;" onclick="analyzeWithAI()" title="将持仓数据整理为提示词并打开 AI 分析">🤖 AI分析</button>
                 <button class="btn btn-secondary" onclick="logout()">切换账号</button>
                 <button class="btn btn-primary" onclick="showAddForm()">+ 添加股票</button>

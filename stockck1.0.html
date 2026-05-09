@@ -28,7 +28,7 @@
     /* 连接状态栏 */
     .db-status-bar {
       position: fixed;
-      top: 0;
+      top: 40px;
       left: 0;
       right: 0;
       background: rgba(30,35,54,.95);
@@ -66,7 +66,39 @@
     }
     .db-status-bar .db-btn:hover { border-color: var(--accent); color: var(--accent); }
     .db-status-bar .loading { color: var(--gold); }
-    body { padding-top: 40px; }
+    body { padding-top: 80px; }
+
+    /* 全局导航 */
+    .global-nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      background: rgba(30,35,54,0.95);
+      border-bottom: 1px solid rgba(58,63,78,0.5);
+      padding: 8px 16px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      font-size: 13px;
+      z-index: 10000;
+    }
+    .global-nav .nav-item {
+      color: #93c5fd;
+      text-decoration: none;
+      padding: 4px 10px;
+      border-radius: 6px;
+      transition: all .2s;
+      white-space: nowrap;
+    }
+    .global-nav .nav-item:hover {
+      background: rgba(59,130,246,.15);
+      color: #fff;
+    }
+    .global-nav .nav-item.current {
+      background: rgba(59,130,246,.25);
+      color: #fff;
+      font-weight: 600;
+    }
 
     /* Footer */
     .footer {
@@ -110,7 +142,7 @@
     }
 
     /* Container */
-    .container { max-width: 1100px; margin: 32px auto 0; padding: 0 16px; }
+    .container { max-width: 1400px; margin: 32px auto 0; padding: 0 16px; }
 
     /* Card */
     .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 24px; }
@@ -222,8 +254,8 @@
     }
 
     /* 表格 */
-    .table-wrap { overflow-x: auto; }
-    .data-table { width: 100%; border-collapse: collapse; font-size: 15px; }
+    .table-wrap { overflow-x: auto; min-width: 1300px; }
+    .data-table { width: 100%; min-width: 1200px; border-collapse: collapse; font-size: 15px; }
     .data-table thead tr { border-bottom: 1px solid var(--border); }
     .data-table thead th {
       padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 600;
@@ -282,6 +314,12 @@
       transition: background .2s;
     }
     .btn-delete:hover { background: rgba(224,58,58,.25); }
+    .btn-ai {
+      padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(99,102,241,.4);
+      background: linear-gradient(135deg, rgba(99,102,241,.12), rgba(168,85,247,.08));
+      color: #a5b4fc; font-size: 12px; cursor: pointer; transition: background .2s;
+    }
+    .btn-ai:hover { background: linear-gradient(135deg, rgba(99,102,241,.28), rgba(168,85,247,.2)); color: #c7d2fe; }
 
     /* 空状态 */
     .empty-state {
@@ -528,14 +566,21 @@
   </style>
 </head>
 <body>
+  <!-- 全局导航 -->
+  <div class="global-nav">
+    <a href="index.html" target="_blank" class="nav-item">📊 首页</a>
+    <a href="login.html" target="_blank" class="nav-item">🔐 登录</a>
+    <a href="stockck1.0.html" target="_blank" class="nav-item current">📁 股票池</a>
+    <a href="stockcle.html" target="_blank" class="nav-item">🧹 清列表</a>
+    <a href="stockfx-v2.html" target="_blank" class="nav-item">📈 v2分析</a>
+    <a href="stockai-analysis.html" target="_blank" class="nav-item">🤖 AI分析</a>
+  </div>
+
   <!-- 数据库状态栏 -->
   <div class="db-status-bar">
     <span class="status-dot" id="statusDot"></span>
     <span class="db-url" id="dbUrlDisplay">正在连接...</span>
     <button class="db-btn" onclick="window.location.href='login.html'">重新登录</button>
-    <button class="db-btn" onclick="window.location.href='index.html'" style="border-color:rgba(22,163,74,.5);color:#4ade80;">📈 持仓股票</button>
-    <button class="db-btn" onclick="window.location.href='stockfx-v2.html'" style="border-color:rgba(59,130,246,.5);color:#93c5fd;">📊 股票分析</button>
-    <button class="db-btn" onclick="window.location.href='stockcle.html'" style="border-color:rgba(245,158,11,.5);color:#fbbf24;">🗑️ 清仓股票</button>
   </div>
 
   <header>
@@ -602,7 +647,7 @@
                     <button class="btn-filter" id="filterBtn2" onclick="toggleFilterDropdown(event,'concept2')" title="筛选概念2">▼</button>
                   </div>
                 </th>
-                <th style="width:80px;">操作</th>
+                <th style="width:280px;">操作</th>
               </tr>
             </thead>
             <tbody id="stockTableBody">
@@ -1024,6 +1069,7 @@
             <td>${stock.concept1 ? `<span class="concept-tag">${safeConcept1}</span>` : '-'}</td>
             <td>${stock.concept2 ? `<span class="concept-tag">${safeConcept2}</span>` : '-'}</td>
             <td>
+              <button class="btn-ai" onclick="analyzeStockAI('${safeName}','${stock.code}')">🤖AI</button>
               <button class="btn-detail" data-id="${stock.id}" data-name="${safeName}" data-detail="${escapeHtml(stock.detail || '')}">详情</button>
               <button class="btn-edit" data-id="${stock.id}" data-name="${safeName}" data-code="${stock.code}" data-exchange="${stock.exchange}" data-concept1="${safeConcept1}" data-concept2="${safeConcept2}">编辑</button>
               <button class="btn-delete" data-id="${stock.id}" data-name="${safeName}">删除</button>
@@ -2230,6 +2276,63 @@
       if (fileInput) fileInput.value = '';
     }
 
+    // ========== 单股 AI 分析（发送至千问） ==========
+    function analyzeStockAI(name, code) {
+      const priceData = window.stockPrices || {};
+      const pd = priceData[code] || {};
+      const kdj60Data = window.kdj60Data || {};
+      const kdj = kdj60Data[code] || null;
+      const stock = allStocks.find(s => s.code === code) || {};
+
+      let prompt = `请帮我深度分析以下股票，给出专业投资建议：\n\n`;
+      prompt += `股票名称：${name}\n`;
+      prompt += `股票代码：${code}\n`;
+      prompt += `所属市场：${stock.exchange || '未知'}\n`;
+      if (stock.concept1) prompt += `概念1：${stock.concept1}\n`;
+      if (stock.concept2) prompt += `概念2：${stock.concept2}\n`;
+
+      if (pd.currentPrice > 0) {
+        prompt += `当前价格：¥${pd.currentPrice.toFixed(2)}\n`;
+        if (pd.changeRate != null) prompt += `今日涨跌幅：${pd.changeRate >= 0 ? '+' : ''}${pd.changeRate.toFixed(2)}%\n`;
+      }
+
+      if (kdj) {
+        prompt += `KDJ60(J值)：${kdj.j.toFixed(2)}${kdj.j > 80 ? '（超买）' : kdj.j < 20 ? '（超卖）' : ''}\n`;
+      }
+
+      prompt += `\n请从以下方面进行分析：\n`;
+      prompt += `1. 技术面分析（K线形态、趋势判断、支撑/压力位）\n`;
+      prompt += `2. 基本面评估（所属板块、利好利空信息、估值是否合理、业绩预期）\n`;
+      prompt += `3. 资金面与市场情绪分析\n`;
+      prompt += `4. 短期走势预判与风险提示\n`;
+      prompt += `5. 操作建议（买入/持有/卖出，仓位建议）\n`;
+      prompt += `6. 所属区域\n`;
+
+      navigator.clipboard.writeText(prompt).then(() => {
+        window.open('https://tongyi.aliyun.com/qianwen/', '_blank');
+        showToast(`${name}(${code}) 分析提示词已复制，正在打开千问...`, 'success');
+      }).catch(() => {
+        const modal = document.createElement('div');
+        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+        modal.innerHTML = `
+          <div style="background:#22252f;border-radius:12px;padding:24px;max-width:600px;width:90%;max-height:80vh;overflow:auto;border:1px solid #3a3f4e;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+              <h3 style="font-size:16px;font-weight:600;color:#e2e8f0;">🤖 ${name}(${code}) AI 分析</h3>
+              <button onclick="this.closest('div[style*=fixed]').remove()" style="border:none;background:none;font-size:20px;cursor:pointer;color:#7a8099;">✕</button>
+            </div>
+            <textarea id="_stockAIPrompt" style="width:100%;height:280px;border:1px solid #3a3f4e;border-radius:8px;padding:10px;font-size:13px;resize:vertical;background:#1a1c23;color:#e2e8f0;">${prompt.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>
+            <div style="display:flex;gap:8px;margin-top:12px;">
+              <button onclick="document.getElementById('_stockAIPrompt').select();document.execCommand('copy');showToast('已复制！','success');" 
+                style="flex:1;background:#6366f1;color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-size:14px;">📋 复制提示词</button>
+              <a href="https://tongyi.aliyun.com/qianwen/" target="_blank"
+                style="flex:1;background:#a855f7;color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-size:14px;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;">🚀 打开通义千问</a>
+            </div>
+          </div>`;
+        document.body.appendChild(modal);
+        modal.addEventListener('click', ev => { if (ev.target === modal) modal.remove(); });
+      });
+    }
+
     // ========== AI 分析（发送至千问） ==========
     function analyzeWithAI() {
       const stocks = allStocks;
@@ -2272,6 +2375,7 @@
       prompt += '3. 哪些股票值得重点关注\n';
       prompt += '4. 当前市场环境下的操作建议\n';
       prompt += '5. 有哪些潜在风险需要注意\n';
+      prompt += '6. 所属区域\n';
 
       navigator.clipboard.writeText(prompt).then(() => {
         window.open('https://tongyi.aliyun.com/qianwen/', '_blank');

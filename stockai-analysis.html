@@ -226,7 +226,11 @@
       font-size: 18px;
       font-weight: 700;
       color: var(--text);
+      text-decoration: none;
+      cursor: pointer;
+      transition: color .2s;
     }
+    .stock-name:hover { color: var(--accent); text-decoration: underline; }
     .stock-code {
       font-size: 13px;
       color: var(--muted);
@@ -655,7 +659,7 @@ function renderStocks() {
       <div class="stock-card ${isFocus}" id="card-${idx}">
         <div class="stock-header" onclick="toggleCard(${idx})">
           <div class="stock-info">
-            <span class="stock-name">${name}</span>
+            <a class="stock-name" href="${getStockEastmoneyUrl(code)}" target="_blank" onclick="event.stopPropagation()">${name}</a>
             <span class="stock-code">${code}</span>
           </div>
           <div style="display:flex;align-items:center;gap:12px;">
@@ -774,7 +778,7 @@ function renderSortedStocks() {
       <div class="stock-card ${isFocus}" id="card-${idx}">
         <div class="stock-header" onclick="toggleCard(${idx})">
           <div class="stock-info">
-            <span class="stock-name">${name}</span>
+            <a class="stock-name" href="${getStockEastmoneyUrl(code)}" target="_blank" onclick="event.stopPropagation()">${name}</a>
             <span class="stock-code">${code}</span>
           </div>
           <div style="display:flex;align-items:center;gap:12px;">
@@ -911,6 +915,12 @@ function getMarketPrefix(code) {
 // ==================== 东方财富 secid ====================
 function getSecid(code) {
   return code.startsWith('6') ? `1.${code}` : `0.${code}`;
+}
+
+// 生成东方财富个股页面链接
+function getStockEastmoneyUrl(code) {
+  const market = code.startsWith('6') ? 'sh' : 'sz';
+  return `https://quote.eastmoney.com/${market}${code}.html`;
 }
 
 // ==================== 基本面数据缓存 ====================

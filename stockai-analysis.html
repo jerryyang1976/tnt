@@ -938,7 +938,10 @@ function fetchIndustryInfo(code) {
   });
 }
 
-/* 从歪枣网获取地域板块信息（z52 字段 = 归属地域板块） */
+/* 从歪枣网获取地域板块信息（z52 字段 = 归属地域板块）
+ * 注意：歪枣网 API 为 HTTP，在 HTTPS 环境（如 GitHub Pages）会被浏览器拦截（混合内容策略）。
+ * 此处优先尝试 HTTPS，失败则 fallback 到 HTTP（本地 file:// 环境可用）。
+ * 若两种均无返回，则返回 null，由调用方 fallback 至东方财富 f128。 */
 async function fetchRegionFromWaizaowang(code) {
   if (!WAIZAOWANG_TOKEN) return null;
   try {
@@ -950,15 +953,24 @@ async function fetchRegionFromWaizaowang(code) {
       token: WAIZAOWANG_TOKEN,
       filter: ''
     });
-    const resp = await fetch('http://api.waizaowang.com/doc/getBaseInfo', {
+    // 先试 HTTPS（GitHub Pages 等 HTTPS 环境必须用这个）
+    let resp = await fetch('https://api.waizaowang.com/doc/getBaseInfo', {
       method: 'POST',
-      body: params
-    });
-    if (!resp.ok) return null;
+      body: params,
+      signal: AbortSignal.timeout(5000)
+    }).catch(() => null);
+
+    // HTTPS 失败则试 HTTP（仅本地 file:// 等非 HTTPS 环境可用）
+    if (!resp || !resp.ok) {
+      resp = await fetch('http://api.waizaowang.com/doc/getBaseInfo', {
+        method: 'POST',
+        body: params,
+        signal: AbortSignal.timeout(5000)
+      }).catch(() => null);
+    }
+    if (!resp || !resp.ok) return null;
     const data = await resp.json();
     if (data.code !== 200 || !data.data || data.data.length === 0) return null;
-
-    // 取首条数据的 z52 字段（归属地域板块）
     const row = data.data[0];
     return row.z52 || null;
   } catch (e) {

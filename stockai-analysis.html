@@ -916,9 +916,6 @@ function getSecid(code) {
 // ==================== 基本面数据缓存 ====================
 let fundamentalCache = {};
 
-/* 歪枣网 Token 配置（登录 www.waizaowang.com 后从个人中心获取） */
-const WAIZAOWANG_TOKEN = 'c02e47a30efb3e831c22dbbffbadc09d';
-
 /* 从东方财富获取行业/估值/股本信息 (JSONP) */
 function fetchIndustryInfo(code) {
   const secid = getSecid(code);
@@ -938,56 +935,23 @@ function fetchIndustryInfo(code) {
   });
 }
 
-/* 从歪枣网获取地域板块信息（z52 字段 = 归属地域板块）
- * 注意：歪枣网 API 为 HTTP，在 HTTPS 环境（如 GitHub Pages）会被浏览器拦截（混合内容策略）。
- * 此处优先尝试 HTTPS，失败则 fallback 到 HTTP（本地 file:// 环境可用）。
- * 若两种均无返回，则返回 null，由调用方 fallback 至东方财富 f128。 */
-async function fetchRegionFromWaizaowang(code) {
-  if (!WAIZAOWANG_TOKEN) return null;
+/* 从东方财富 datacenter 获取公司基本信息中的地域板块（REGIONBK 字段）
+ * HTTPS 接口，GitHub Pages / 本地均可使用 */
+async function fetchCompanyRegion(code) {
   try {
-    const params = new URLSearchParams({
-      type: '1',
-      code: code,
-      fields: 'all',
-      export: '1',
-      token: WAIZAOWANG_TOKEN,
-      filter: ''
-    });
-    // 先试 HTTPS（GitHub Pages 等 HTTPS 环境必须用这个）
-    let resp = await fetch('https://api.waizaowang.com/doc/getBaseInfo', {
-      method: 'POST',
-      body: params,
-      signal: AbortSignal.timeout(5000)
-    }).catch(() => null);
-
-    // HTTPS 失败则试 HTTP（仅本地 file:// 等非 HTTPS 环境可用）
-    if (!resp || !resp.ok) {
-      resp = await fetch('http://api.waizaowang.com/doc/getBaseInfo', {
-        method: 'POST',
-        body: params,
-        signal: AbortSignal.timeout(5000)
-      }).catch(() => null);
-    }
-    if (!resp || !resp.ok) return null;
+    const url = `https://datacenter-web.eastmoney.com/api/data/v1/get?reportName=RPT_F10_ORG_BASICINFO&columns=REGIONBK&filter=(SECURITY_CODE%3D%22${code}%22)&pageSize=1&pageNumber=1&source=HSF10&client=PC`;
+    const resp = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    if (!resp.ok) return null;
     const data = await resp.json();
-    if (data.code !== 200 || !data.data || data.data.length === 0) return null;
-    const row = data.data[0];
-    return row.z52 || null;
+    if (data && data.result && data.result.data && data.result.data.length > 0) {
+      const region = data.result.data[0].REGIONBK;
+      return region || null;
+    }
+    return null;
   } catch (e) {
-    console.error('歪枣网地域获取失败:', code, e);
+    console.error('东方财富地域获取失败:', code, e);
     return null;
   }
-}
-
-/* 获取股票所属区域 — 优先歪枣网，其次东方财富 f128 */
-async function fetchCompanyRegion(code) {
-  // 1. 优先调用歪枣网（返回准确的归属地域板块）
-  const wzRegion = await fetchRegionFromWaizaowang(code);
-  if (wzRegion) return wzRegion;
-
-  // 2. fallback：东方财富 f128（在 fetchIndustryInfo 中已带回）
-  // 此处不再单独请求注册地址接口（该接口已下线返回 9501）
-  return null;
 }
 
 /* 从东方财富获取财务指标 */

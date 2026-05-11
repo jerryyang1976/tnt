@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>老杨的股票每日分析 v2</title>
+  <title>V2分析</title>
   <style>
     :root {
       --red:    #e03a3a;
@@ -129,6 +129,7 @@
       background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 40%, #e2e8f0 70%, #93c5fd 100%);
       -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
     }
+    .header-en { margin-top: 4px; font-size: 0.65em; color: var(--muted); letter-spacing: 0.5px; }
     .header-sub { margin-top: 6px; font-size: 13px; color: var(--muted); }
     .badge {
       display: inline-block; margin-top: 12px; padding: 3px 12px; border-radius: 20px;
@@ -476,19 +477,48 @@
 
     /* ── Search bar ── */
     .search-bar {
+      position: relative;
+      z-index: 99999;
       display: flex; gap: 10px; align-items: center; padding: 10px 16px;
       background: rgba(255,255,255,.02); border: 1px solid var(--border); border-radius: 10px;
     }
     .search-bar label { font-size: 13px; color: var(--muted); white-space: nowrap; }
+    .search-go-btn {
+      padding: 6px 14px; border-radius: 7px; border: 1px solid var(--accent);
+      background: var(--accent); color: #fff; font-size: 13px;
+      cursor: pointer; white-space: nowrap; transition: opacity .15s;
+    }
+    .search-go-btn:hover { opacity: .85; }
     .search-bar input {
       flex: 1; background: rgba(255,255,255,.05); border: 1px solid var(--border);
       border-radius: 7px; color: var(--text); font-size: 13px; padding: 7px 12px;
       outline: none; font-family: inherit; transition: border-color .2s;
     }
     .search-bar input:focus { border-color: var(--accent); }
-    .search-bar .result-hint {
-      font-size: 11px; color: var(--muted); min-width: 80px; text-align: right;
+    .search-results {
+      display: none;
+      position: fixed;
+      background: #1e2336; border: 1px solid var(--border);
+      border-radius: 0 0 10px 10px;
+      max-height: 340px; overflow-y: auto;
+      box-shadow: 0 12px 40px rgba(0,0,0,.55);
     }
+    .search-results.open { display: block; }
+    .search-result-item {
+      padding: 9px 14px; cursor: pointer;
+      display: flex; align-items: center; gap: 8px;
+      border-bottom: 1px solid rgba(58,63,78,.4);
+      transition: background .15s;
+    }
+    .search-result-item:last-child { border-bottom: none; border-radius: 0 0 10px 10px; }
+    .search-result-item:hover { background: rgba(59,130,246,.12); }
+    .search-result-item .sr-type {
+      font-size: 11px; padding: 1px 6px; border-radius: 3px;
+      background: rgba(59,130,246,.12); color: #93c5fd;
+    }
+    .search-result-item .sr-name { font-weight: 600; color: var(--text); }
+    .search-result-item .sr-code { color: var(--muted); font-size: 12px; }
+    .search-result-item .sr-extra { margin-left: auto; color: var(--muted); font-size: 11px; }
 
     /* ── Data Tools ── */
     .data-tools {
@@ -796,7 +826,8 @@
 <!-- ═══ Header ═══ -->
 <header>
   <p class="header-date" id="dateStr"></p>
-  <h1>老杨的股票每日分析</h1>
+  <h1>浩岳寻龙金融分析系统 V3.20</h1>
+  <p class="header-en">Haoyue Dragonseek Financial Analysis System by zhenhao.yang</p>
   <p class="header-sub">每日复盘 · 独立思考 · 稳健交易</p>
   <span class="badge">⚡ 云端同步版</span>
   <span class="badge db-badge" id="dbBadge" style="display:none;">✓ 已连接</span>
@@ -822,12 +853,24 @@
       </div>
       <div class="search-bar">
         <label>🔍 页内搜索</label>
-        <input type="text" id="pageSearchInput" placeholder="输入关键词（支持股票名称/代码/板块/资讯内容）" />
-        <span class="result-hint" id="searchResultHint"></span>
+        <input type="text" id="pageSearchInput" placeholder="输入关键词..." autocomplete="off" />
+        <button class="search-go-btn" id="btnPageSearchGo">搜索</button>
       </div>
     </div>
   </div>
 
+  <!-- ═══ Section 1: 今日重点资讯 ═══ -->
+  <div class="card">
+    <div class="card-header">
+      <div class="icon icon-news">📰</div>
+      <span class="card-title">今日重点资讯</span>
+      <span class="card-meta" id="newsCount">共 0 条</span>
+    </div>
+    <div class="card-body">
+      <div class="news-list" id="newsList"></div>
+      <button class="btn-add" id="btnAddNews">＋ 添加资讯</button>
+    </div>
+  </div>
   <!-- ═══ Section: 持仓涨跌前五 AI 分析 ═══ -->
   <div class="card" id="aiAnalysisCard">
     <div class="card-header">
@@ -863,18 +906,6 @@
     </div>
   </div>
 
-  <!-- ═══ Section 1: 今日重点资讯 ═══ -->
-  <div class="card">
-    <div class="card-header">
-      <div class="icon icon-news">📰</div>
-      <span class="card-title">今日重点资讯</span>
-      <span class="card-meta" id="newsCount">共 0 条</span>
-    </div>
-    <div class="card-body">
-      <div class="news-list" id="newsList"></div>
-      <button class="btn-add" id="btnAddNews">＋ 添加资讯</button>
-    </div>
-  </div>
 
   <!-- ═══ Section 2: 相关热点板块 ═══ -->
   <div class="card">
@@ -1260,6 +1291,7 @@ async function supabaseFetch(endpoint, options = {}, timeoutMs = 15000) {
     const url = supabaseUrl + '/rest/v1/' + endpoint;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
     try {
         const response = await fetch(url, {
             ...options,
@@ -1268,7 +1300,7 @@ async function supabaseFetch(endpoint, options = {}, timeoutMs = 15000) {
                 'Authorization': 'Bearer ' + supabaseKey,
                 'Content-Type': 'application/json',
                 'Prefer': 'return=representation',
-                ...options.headers
+                ...(options.headers || {})
             },
             signal: controller.signal
         });
@@ -1276,7 +1308,9 @@ async function supabaseFetch(endpoint, options = {}, timeoutMs = 15000) {
         return response;
     } catch (error) {
         clearTimeout(timeout);
-        if (error.name === 'AbortError') throw new Error('请求超时');
+        if (error.name === 'AbortError') {
+            throw new Error('请求超时');
+        }
         throw error;
     }
 }
@@ -2660,106 +2694,115 @@ function importData(fileInput) {
     fileInput.value = "";
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   页内搜索
-   ═══════════════════════════════════════════════════════════════════ */
-  let currentSearchResults = [];
-  let currentSearchIndex = -1;
-
-  function onPageSearchInput() {
+  /* ══════════════════════════════════════════════════════════════════
+   页内搜索（下拉菜单模式）
+   ══════════════════════════════════════════════════════════════════ */
+  function doPageSearch() {
     const kw = $("pageSearchInput").value.trim();
-    const hint = $("searchResultHint");
-    if (!kw) {
-      clearPageSearchHighlights();
-      hint.textContent = "";
+    const box = $("searchResults");
+    if (!kw) { box.classList.remove("open"); return; }
+
+    // 定位下拉菜单位置（跟在搜索框下方）
+    const rect = $("pageSearchInput").getBoundingClientRect();
+    box.style.position = "fixed";
+    box.style.top = (rect.bottom + 4) + "px";
+    box.style.left = rect.left + "px";
+    box.style.width = rect.width + "px";
+    box.style.zIndex = "2147483647";
+
+    const lower = kw.toLowerCase();
+    const matches = [];
+
+    // 搜索资讯
+    document.querySelectorAll(".news-item").forEach((el, i) => {
+      if (el.textContent.toLowerCase().includes(lower))
+        matches.push({ el, type: "资讯", label: el.querySelector(".title")?.textContent?.trim() || "资讯 " + (i+1) });
+    });
+    // 搜索板块
+    document.querySelectorAll(".sector-row").forEach((el, i) => {
+      if (el.textContent.toLowerCase().includes(lower))
+        matches.push({ el, type: "板块", label: el.querySelector(".sector-name")?.textContent?.trim() || "板块 " + (i+1) });
+    });
+    // 搜索持仓表格
+    document.querySelectorAll("#stockTableWrap tr").forEach((el, i) => {
+      if (i === 0) return;
+      if (el.textContent.toLowerCase().includes(lower))
+        matches.push({ el, type: "持仓", label: el.cells[0]?.textContent?.trim() || "持仓 " + i });
+    });
+    // 搜索 AI 分析卡片
+    document.querySelectorAll(".ai-card").forEach((el, i) => {
+      if (el.textContent.toLowerCase().includes(lower))
+        matches.push({ el, type: "AI分析", label: "AI分析 " + (i+1) });
+    });
+    // 搜索龙头标签
+    document.querySelectorAll(".leader-tag").forEach((el, i) => {
+      if (el.textContent.toLowerCase().includes(lower))
+        matches.push({ el, type: "龙头", label: el.textContent.trim() });
+    });
+
+    if (!matches.length) {
+      box.innerHTML = '<div class="search-result-item" style="color:var(--muted);">未找到匹配结果</div>';
+      box.classList.add("open");
       return;
     }
-    const results = searchInPage(kw);
-    currentSearchResults = results;
-    currentSearchIndex = -1;
-    hint.textContent = `找到 ${results.length} 处`;
-    highlightResults(results);
-    if (results.length) goToNextResult();
-  }
 
-  function searchInPage(kw) {
-    const els = Array.from(document.querySelectorAll(".news-item, .sector-row, .leader-tag, tr"));
-    const results = [];
-    els.forEach(el => {
-      if (!el.textContent) return;
-      const text = el.textContent;
-      let start = 0;
-      while ((start = text.toLowerCase().indexOf(kw.toLowerCase(), start)) !== -1) {
-        results.push({ el, start, text });
-        start = start + 1;
-      }
-    });
-    return results;
-  }
+    box.innerHTML = matches.map((m, i) =>
+      `<div class="search-result-item" data-idx="${i}">
+        <span class="sr-type">${m.type}</span>
+        <span class="sr-name">${m.label}</span>
+      </div>`
+    ).join("");
+    box.classList.add("open");
 
-  function highlightResults(results) {
-    clearPageSearchHighlights();
-    results.forEach(r => {
-      if (!r.el.classList.contains("_search-hit")) {
-        r.el.classList.add("_search-hit");
-        r.el.dataset._searchIndex = results.indexOf(r);
-      }
-    });
-    if (!document.getElementById("_search-highlight-style")) {
-      const style = document.createElement("style");
-      style.id = "_search-highlight-style";
-      style.textContent = `
-        ._search-hit { border-radius: 8px; }
-        ._search-hit._current { animation: searchPulse 1.2s ease infinite; }
-        @keyframes searchPulse {
-          0% { box-shadow: 0 0 0 0 rgba(245,158,11,.6); }
-          70% { box-shadow: 0 0 0 10px rgba(245,158,11,0); }
-          100% { box-shadow: 0 0 0 0 rgba(245,158,11,0); }
-        }
-      `;
-      document.head.appendChild(style);
-    }
-  }
-
-  function clearPageSearchHighlights() {
-    document.querySelectorAll("._search-hit").forEach(el => {
-      el.classList.remove("_search-hit", "_current");
-      delete el.dataset._searchIndex;
+    box.querySelectorAll(".search-result-item").forEach((item, i) => {
+      item.addEventListener("click", () => {
+        scrollToSearchResult(matches[i].el);
+        box.classList.remove("open");
+      });
     });
   }
 
-  function goToNextResult() {
-    if (!currentSearchResults.length) return;
-    currentSearchIndex = (currentSearchIndex + 1) % currentSearchResults.length;
-    const r = currentSearchResults[currentSearchIndex];
-    document.querySelectorAll("._search-hit").forEach(el => el.classList.remove("_current"));
-    r.el.classList.add("_current");
-    r.el.scrollIntoView({ behavior: "smooth", block: "center" });
+  function scrollToSearchResult(el) {
+    document.querySelectorAll(".search-highlight-row").forEach(e => e.classList.remove("search-highlight-row"));
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add("search-highlight-row");
+    clearTimeout(window._srTimer);
+    window._srTimer = setTimeout(() => { el.classList.remove("search-highlight-row"); }, 10000);
   }
 
-  function goToPrevResult() {
-    if (!currentSearchResults.length) return;
-    currentSearchIndex = (currentSearchIndex - 1 + currentSearchResults.length) % currentSearchResults.length;
-    const r = currentSearchResults[currentSearchIndex];
-    document.querySelectorAll("._search-hit").forEach(el => el.classList.remove("_current"));
-    r.el.classList.add("_current");
-    r.el.scrollIntoView({ behavior: "smooth", block: "center" });
-  }
+  // 输入时实时搜索 + 定位下拉 + 回车搜索
+  $("pageSearchInput").addEventListener("input", doPageSearch);
+  $("pageSearchInput").addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); doPageSearch(); }
+  });
+  // 点击搜索按钮
+  $("btnPageSearchGo").addEventListener("click", doPageSearch);
 
-  $("pageSearchInput").addEventListener("input", onPageSearchInput);
-  // 支持键盘快捷键：F3/Enter 下一项，Shift+F3/Shift+Enter 上一项
+  // 滚动或缩放时更新下拉位置
+  function updateDropdownPosition() {
+    const box = $("searchResults");
+    if (!box.classList.contains("open")) return;
+    const rect = $("pageSearchInput").getBoundingClientRect();
+    box.style.top = (rect.bottom + 4) + "px";
+    box.style.left = rect.left + "px";
+    box.style.width = rect.width + "px";
+  }
+  window.addEventListener("scroll", updateDropdownPosition, true);
+  window.addEventListener("resize", updateDropdownPosition);
+
+  // Esc 关闭下拉
   document.addEventListener("keydown", e => {
-    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") {
-      if ((e.key === "F3" || e.key === "Enter") && !e.shiftKey) {
-        e.preventDefault();
-        if (currentSearchResults.length) goToNextResult();
-      } else if ((e.key === "F3" || e.key === "Enter") && e.shiftKey) {
-        e.preventDefault();
-        if (currentSearchResults.length) goToPrevResult();
-      }
+    if (e.key === "Escape") {
+      $("searchResults").classList.remove("open");
     }
   });
 
+  // 点击页面其他地方关闭下拉
+  document.addEventListener("click", e => {
+    if (!e.target.closest(".search-bar")) {
+      $("searchResults").classList.remove("open");
+    }
+  });
 /* ═══════════════════════════════════════════════════════════════════
    回到顶部按钮
    ═══════════════════════════════════════════════════════════════════ */
@@ -3746,6 +3789,8 @@ window.addEventListener('DOMContentLoaded', init);
 <div class="footer">
     本页内容仅供老杨个人复盘使用，不构成任何投资建议。股市有风险，入市须谨慎。
 </div>
+
+<div class="search-results" id="searchResults"></div>
 
 </body>
 </html>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>A股股票信息管理</title>
+    <title>持仓首页</title>
     <style>
         * {
             margin: 0;
@@ -69,6 +69,13 @@
             color: white;
             font-size: 1.5rem;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+            white-space: nowrap;
+        }
+
+        .header h1 .header-en {
+            font-size: 0.65em;
+            margin-left: 8px;
+            opacity: 0.85;
         }
 
         /* 指数显示区域 */
@@ -1019,7 +1026,7 @@
 
     <div class="container">
         <div class="header">
-            <h1>📈 A股股票信息管理</h1>
+            <h1>浩岳寻龙金融分析系统 V3.20 <span class="header-en">Haoyue Dragonseek Financial Analysis System by zhenhao.yang</span></h1>
             <div class="header-actions">
                 <div class="global-search">
                     <input type="text" id="globalSearch" placeholder="搜索股票名称/代码/备注...">

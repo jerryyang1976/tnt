@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI分析</title>
+  <title>KDJ分析</title>
   <style>
     :root {
       --red:    #e03a3a;
@@ -491,8 +491,8 @@
     <a href="stockck1.0.html" target="_blank" class="nav-item">📁 股票池</a>
     <a href="stockcle.html" target="_blank" class="nav-item">🧹 清列表</a>
     <a href="stockfx-v2.html" target="_blank" class="nav-item">📈 v2分析</a>
-    <a href="stockai-analysis.html" target="_blank" class="nav-item current">🤖 AI分析</a>
-    <a href="stockai-KDJanalysis.html" target="_blank" class="nav-item">📊 KDJ分析</a>
+    <a href="stockai-analysis.html" target="_blank" class="nav-item">🤖 AI分析</a>
+    <a href="stockai-KDJanalysis.html" target="_blank" class="nav-item current">📊 KDJ分析</a>
   </div>
 
 <!-- 数据库状态栏 -->
@@ -508,7 +508,7 @@
     <div class="header-date" id="headerDate"></div>
     <h1>浩岳寻龙金融分析系统 V3.20</h1>
     <div class="header-en">Haoyue Dragonseek Financial Analysis System by zhenhao.yang</div>
-    <div class="header-sub">智能基本面分析 · 利好利空解读 · 投资策略建议</div>
+    <div class="header-sub">KDJ60 低位筛选 · 智能基本面分析 · 利好利空解读 · 投资策略建议</div>
     <div class="badge" id="dbBadge">📊 加载中...</div>
   </header>
 
@@ -539,7 +539,7 @@
 <!-- Empty State -->
 <div class="empty-state" id="emptyState" style="display:none;">
   <div class="icon">📊</div>
-  <p>暂无股票数据，请先在 <a href="index.html" style="color:var(--accent);">index.html</a> 中添加股票</p>
+  <p>暂无股票数据，请先在 <a href="stockck1.0.html" style="color:var(--accent);">股票池</a> 中添加股票</p>
 </div>
 
 <!-- 添加股票弹窗 -->
@@ -565,7 +565,6 @@
 // ==================== 配置区 ====================
 let supabaseUrl = null;
 let supabaseKey = null;
-let supabaseClient = null;
 let stocksData = [];
 
 // 腾讯行情 API
@@ -592,15 +591,25 @@ async function initDB() {
   }
 
   try {
-    const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/+esm');
-    supabaseClient = createClient(supabaseUrl, supabaseKey);
-    document.getElementById('statusDot').classList.add('connected');
-    document.getElementById('projectUrl').textContent = supabaseUrl;
-    document.getElementById('dbBadge').textContent = '✅ 数据库已连接';
-    document.getElementById('dbBadge').classList.add('db-badge');
-    loadStocks();
+    // 测试数据库连接
+    const resp = await fetch(`${supabaseUrl}/rest/v1/stock_pool?select=id&limit=1`, {
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`
+      }
+    });
+    if (resp.ok) {
+      document.getElementById('statusDot').classList.add('connected');
+      document.getElementById('projectUrl').textContent = supabaseUrl;
+      document.getElementById('dbBadge').textContent = '✅ 数据库已连接';
+      document.getElementById('dbBadge').classList.add('db-badge');
+      loadStocks();
+    } else {
+      document.getElementById('statusDot').classList.add('error');
+      document.getElementById('projectUrl').textContent = '连接失败: ' + resp.status;
+    }
   } catch(e) {
-    console.error('Supabase init error:', e);
+    console.error('DB init error:', e);
     document.getElementById('statusDot').classList.add('error');
   }
 }
@@ -616,22 +625,37 @@ window.configureDB = function() {
   location.reload();
 };
 
-// ==================== 加载股票列表 ====================
+// ==================== 加载股票列表（从 stock_pool 表） ====================
 window.loadStocks = async function() {
-  if (!supabaseClient) {
+  if (!supabaseUrl || !supabaseKey) {
     alert('请先配置数据库连接');
     return;
   }
 
   try {
-    const { data, error } = await supabaseClient
-      .from('stocks')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const url = `${supabaseUrl}/rest/v1/stock_pool?select=*&order=created_at.desc`;
+    const resp = await fetch(url, {
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
 
-    if (error) throw error;
+    // 适配 stock_pool 表结构 → stocksData 统一格式
+    stocksData = (data || []).map(s => ({
+      stock_code: s.code,
+      stock_name: s.name || s.code,
+      isFocus: false,
+      exchange: s.exchange || '',
+      concept1: s.concept1 || '',
+      concept2: s.concept2 || '',
+      quote: null,
+      fundamental: null
+    }));
 
-    stocksData = data || [];
     document.getElementById('statsInfo').textContent = `共 ${stocksData.length} 只股票`;
     renderStocks();
   } catch(e) {
@@ -669,6 +693,7 @@ function renderStocks() {
             <div style="text-align:right;">
               <div class="stock-price" id="price-${idx}">--</div>
               <div class="stock-chg" id="chg-${idx}">--</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px;">KDJ60: <span id="kdj60-${code}" style="font-weight:600;">加载中</span></div>
             </div>
             <div class="expand-icon" id="icon-${idx}">▼</div>
           </div>
@@ -728,12 +753,99 @@ function renderStocks() {
     `;
   }).join('');
 
-  // 自动加载行情数据
+  // 自动加载行情数据，完成后获取 KDJ60 并排序
   const quotePromises = stocksData.map((stock, idx) => loadStockQuote(stock.stock_code, idx));
   Promise.all(quotePromises).then(() => {
-    // 所有行情加载完成后，按涨幅排序并重新渲染
-    sortStocksByChgPct();
+    // 所有行情加载完成后，获取 KDJ60 数据并按 J 值排序
+    loadAllKDJ60().then(() => {
+      sortByKDJ60();
+    });
   });
+}
+
+// ==================== 获取所有股票的 KDJ60 数据 ====================
+async function loadAllKDJ60() {
+  const codes = stocksData.map(s => s.stock_code);
+  window._kdj60Data = {};
+  for (const code of codes) {
+    await fetchKDJ60(code);
+  }
+}
+
+// ==================== 获取单只股票的 60 分钟 KDJ 指标 ====================
+async function fetchKDJ60(code) {
+  try {
+    let prefix;
+    if (code.startsWith('6')) prefix = 'sh';
+    else if (code.startsWith('0') || code.startsWith('3')) prefix = 'sz';
+    else if (code.startsWith('8') || code.startsWith('4')) prefix = 'bj';
+    else prefix = 'sh';
+
+    const symbol = prefix + code;
+    const url = `https://ifzq.gtimg.cn/appstock/app/kline/mkline?param=${symbol},m60,,100`;
+
+    const response = await fetch(url);
+    const text = await response.text();
+    const result = JSON.parse(text);
+
+    const stockData = result.data && result.data[symbol];
+    if (stockData && stockData.m60 && stockData.m60.length > 0) {
+      const klines = stockData.m60;
+      const closes = [], highs = [], lows = [];
+
+      for (const k of klines) {
+        closes.push(parseFloat(k[2]));
+        highs.push(parseFloat(k[3]));
+        lows.push(parseFloat(k[4]));
+      }
+
+      // 计算 KDJ(9,3,3)
+      const n = 9;
+      let kVal = 50.0, dVal = 50.0;
+
+      for (let i = n - 1; i < closes.length; i++) {
+        let highest = -Infinity, lowest = Infinity;
+        for (let j = i - n + 1; j <= i; j++) {
+          if (highs[j] > highest) highest = highs[j];
+          if (lows[j] < lowest) lowest = lows[j];
+        }
+        const rsv = (highest === lowest) ? 50.0 : (closes[i] - lowest) / (highest - lowest) * 100;
+        kVal = 2 / 3 * kVal + 1 / 3 * rsv;
+        dVal = 2 / 3 * dVal + 1 / 3 * kVal;
+      }
+
+      const jVal = 3 * kVal - 2 * dVal;
+      window._kdj60Data[code] = { k: kVal, d: dVal, j: jVal };
+
+      // 更新卡片中的 KDJ60 显示
+      const kdjEl = document.getElementById(`kdj60-${code}`);
+      if (kdjEl) {
+        kdjEl.textContent = jVal.toFixed(2);
+        kdjEl.style.color = jVal > 80 ? '#e03a3a' : jVal < 20 ? '#16a34a' : '#f59e0b';
+      }
+    }
+  } catch (e) {
+    console.error('获取KDJ60数据失败:', code, e);
+  }
+}
+
+// ==================== 按 KDJ60 J 值从小到大排序，取前30名 ====================
+function sortByKDJ60() {
+  const kdjData = window._kdj60Data || {};
+  const totalCount = stocksData.length;
+
+  // 按 J 值从小到大排序
+  stocksData.sort((a, b) => {
+    const jA = kdjData[a.stock_code]?.j ?? Infinity;
+    const jB = kdjData[b.stock_code]?.j ?? Infinity;
+    return jA - jB;
+  });
+
+  // 取前30只
+  stocksData = stocksData.slice(0, 30);
+
+  document.getElementById('statsInfo').textContent = `KDJ60 低位前 ${stocksData.length} 只（共 ${totalCount} 只）`;
+  renderSortedStocks();
 }
 
 // ==================== 按涨幅排序 ====================
@@ -777,6 +889,10 @@ function renderSortedStocks() {
     const chgText = chgPct != null ? `${chgPct >= 0 ? '+' : ''}${chgPct.toFixed(2)}%` : '--';
     const chgClass = chgPct != null ? (chgPct >= 0 ? 'profit' : 'loss') : '';
     const isFocus = stock.isFocus ? 'focus' : '';
+    const kdjData = window._kdj60Data || {};
+    const kdj = kdjData[code] || {};
+    const kdjJ = kdj.j != null ? kdj.j.toFixed(2) : '--';
+    const kdjColor = kdj.j != null ? (kdj.j > 80 ? 'var(--red)' : kdj.j < 20 ? 'var(--green)' : 'var(--gold)') : 'var(--muted)';
     return `
       <div class="stock-card ${isFocus}" id="card-${idx}">
         <div class="stock-header" onclick="toggleCard(${idx})">
@@ -788,6 +904,7 @@ function renderSortedStocks() {
             <div style="text-align:right;">
               <div class="stock-price" id="price-${idx}">${price}</div>
               <div class="stock-chg ${chgClass}" id="chg-${idx}">${chgText}</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px;">KDJ60: <span id="kdj60-${code}" style="font-weight:600;color:${kdjColor};">${kdjJ}</span></div>
             </div>
             <div class="expand-icon" id="icon-${idx}">▼</div>
           </div>

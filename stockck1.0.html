@@ -254,8 +254,23 @@
       display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;
     }
 
-    /* 表格 */
-    .table-wrap { overflow-x: auto; min-width: 1300px; }
+    /* 顶部同步滚动条 */
+    .top-scroll-wrapper {
+      width: 100%;
+      overflow-x: auto;
+      overflow-y: hidden;
+      height: 16px;
+      margin-bottom: 2px;
+      background: transparent;
+    }
+    .top-scroll-wrapper::-webkit-scrollbar { height: 10px; }
+    .top-scroll-wrapper::-webkit-scrollbar-track { background: rgba(255,255,255,.06); border-radius: 5px; }
+    .top-scroll-wrapper::-webkit-scrollbar-thumb { background: #555; border-radius: 5px; min-width: 30px; }
+    /* 表格横向滚动容器 */
+    .table-wrap { overflow-x: auto; overflow-y: auto; max-height: none; }
+    .table-wrap::-webkit-scrollbar { height: 10px; width: 8px; }
+    .table-wrap::-webkit-scrollbar-track { background: rgba(255,255,255,.06); border-radius: 5px; }
+    .table-wrap::-webkit-scrollbar-thumb { background: #555; border-radius: 5px; min-width: 30px; }
     .data-table { width: 100%; min-width: 1200px; border-collapse: collapse; font-size: 15px; }
     .data-table thead tr { border-bottom: 1px solid var(--border); }
     .data-table thead th {
@@ -575,6 +590,7 @@
     <a href="stockcle.html" target="_blank" class="nav-item">🧹 清列表</a>
     <a href="stockfx-v2.html" target="_blank" class="nav-item">📈 v2分析</a>
     <a href="stockai-analysis.html" target="_blank" class="nav-item">🤖 AI分析</a>
+    <a href="stockai-KDJanalysis.html" target="_blank" class="nav-item">📊 KDJ分析</a>
   </div>
 
   <!-- 数据库状态栏 -->
@@ -618,15 +634,16 @@
           <button onclick="analyzeWithAI()" style="display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border-radius:8px;border:1px solid #a855f7;background:linear-gradient(135deg,#6366f1,#a855f7);color:#fff;font-size:14px;font-weight:600;cursor:pointer;transition:background .2s,transform .1s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform=''" title="将持仓数据整理为提示词并打开 AI 分析">🤖 AI分析</button>
         </div>
 
-        <!-- 表格 -->
-        <div class="table-wrap">
+        <!-- 表格（双层滚动容器，解决窄屏裁切问题） -->
+        <div class="top-scroll-wrapper" id="topScrollWrapper"></div>
+        <div class="table-wrap" id="tableScrollWrapper">
           <!-- 筛选激活提示条 -->
           <div class="filter-active-bar" id="filterActiveBar">
             <span>筛选条件：</span>
             <span id="filterTags"></span>
             <button class="btn-clear-all-filter" onclick="clearAllFilters()">清除全部筛选</button>
           </div>
-          <table class="data-table">
+          <table class="data-table" id="dataTable">
             <thead>
               <tr>
                 <th style="width:60px;">序号</th>
@@ -872,6 +889,24 @@
       rows.forEach(row => tbody.appendChild(row));
     }
 
+    // 初始化顶部与底部滚动条同步
+    function initScrollSync() {
+      const topWrap = document.getElementById('topScrollWrapper');
+      const tableWrap = document.getElementById('tableScrollWrapper');
+      const table = document.getElementById('dataTable');
+      if (!topWrap || !tableWrap || !table) return;
+
+      // 设置顶部滚动条内容宽度与表格一致
+      requestAnimationFrame(() => {
+        const tw = Math.max(table.offsetWidth, tableWrap.offsetWidth);
+        topWrap.innerHTML = '<div style="width:' + tw + 'px;height:1px;"></div>';
+      });
+
+      // 互相同步
+      topWrap.addEventListener('scroll', () => { tableWrap.scrollLeft = topWrap.scrollLeft; });
+      tableWrap.addEventListener('scroll', () => { topWrap.scrollLeft = tableWrap.scrollLeft; });
+    }
+
     // 获取单个股票价格
     function fetchSinglePrice(code) {
       return new Promise((resolve) => {
@@ -1083,6 +1118,8 @@
       fetchStockPrices();
       // 获取KDJ60数据
       fetchAllKDJ60();
+      // 初始化滚动条同步
+      initScrollSync();
     }
 
     // 搜索功能

@@ -1156,16 +1156,61 @@
 
     // 保存股票（新增或编辑）
   async function saveStock() {
-      const name = document.getElementById('stockName').value.trim();
-      const code = document.getElementById('stockCode').value.trim();
-      const exchange = document.getElementById('stockExchangeDisplay').value;
-      const concept1 = document.getElementById('stockConcept1').value.trim();
-      const concept2 = document.getElementById('stockConcept2').value.trim();
+      let name = document.getElementById('stockName').value.trim();
+      let code = document.getElementById('stockCode').value.trim();
+      const hint = document.getElementById('stockLookupHint');
 
-      if (!name || !code || !exchange) {
-        alert('请填写股票名称、代码和交易所');
+      // 两个都为空才报错
+      if (!name && !code) {
+        alert('请至少填写股票名称或代码');
         return;
       }
+
+      // 只有代码 → 自动查名称
+      if (code && !name) {
+        hint.textContent = '⟳ 正在获取股票名称…';
+        hint.style.color = 'var(--muted)';
+        const q = await fetchQuoteTencent(code);
+        if (q && q.name) {
+          name = q.name;
+          document.getElementById('stockName').value = name;
+          hint.textContent = `✓ 已自动获取：${name}（${code}）`;
+          hint.style.color = '#4ade80';
+        } else {
+          // 查不到也允许保存，使用代码作为名称兜底
+          name = code;
+          document.getElementById('stockName').value = name;
+          hint.textContent = '⚠️ 未能查到名称，已用代码代替';
+          hint.style.color = '#fbbf24';
+        }
+      }
+
+      // 只有名称 → 自动查代码
+      if (name && !code) {
+        hint.textContent = '⟳ 正在查询股票代码…';
+        hint.style.color = 'var(--muted)';
+        const result = await searchStockCode(name);
+        if (result && result.code) {
+          code = result.code;
+          name = result.name || name;
+          document.getElementById('stockCode').value = code;
+          document.getElementById('stockName').value = name;
+          hint.textContent = `✓ 已自动获取：${name}（${code}）`;
+          hint.style.color = '#4ade80';
+        } else {
+          alert(`未能通过「${name}」查到股票代码，请手动填写代码`);
+          return;
+        }
+      }
+
+      // 交易所：优先使用已填入的值，否则按代码推断，最终兜底 'A股'
+      let exchange = document.getElementById('stockExchangeDisplay').value.trim();
+      if (!exchange && code) exchange = getExchangeFromCode(code);
+      if (!exchange) exchange = 'A股';
+      document.getElementById('stockExchangeDisplay').value = exchange;
+
+      const concept1 = document.getElementById('stockConcept1').value.trim();
+      const concept2 = document.getElementById('stockConcept2').value.trim();
 
       // ── 重复录入检查（新增模式下校验；编辑模式只校验其他股票是否冲突）──
       const duplicateByCode = allStocks.find(s =>
@@ -1229,7 +1274,8 @@
       if (/^(600|601|603|605|688|900)/.test(code)) return '沪市';
       if (/^(000|001|002|003|200)/.test(code)) return '深市';
       if (/^(300|301)/.test(code)) return '创业板';
-      return '';
+      if (/^(8|4)/.test(code)) return '北交所';
+      return 'A股';  // 兜底，确保交易所字段不为空
     }
 
     // 腾讯行情 API - 获取股票信息
@@ -1309,93 +1355,100 @@
       });
     }
 
-    // 股票名称输入 - 按回车确认后查询代码
-    document.getElementById('stockName').addEventListener('keydown', async function(e) {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        const name = this.value.trim();
-        const codeInput = document.getElementById('stockCode');
-        const exchangeDisplay = document.getElementById('stockExchangeDisplay');
-        const hint = document.getElementById('stockLookupHint');
-        
-        if (!name) {
-          hint.textContent = '请输入股票名称';
-          hint.style.color = '#f87171';
-          return;
-        }
-        
-        hint.textContent = '⟳ 正在查询代码…';
-        hint.style.color = 'var(--muted)';
-        const result = await searchStockCode(name);
-        if (!result || !result.code) {
-          hint.textContent = `未找到"${name}"的代码`;
-          hint.style.color = '#f87171';
-          return;
-        }
-        codeInput.value = result.code;
-        this.value = result.name;
-        const exchange = getExchangeFromCode(result.code);
-        exchangeDisplay.value = exchange;
-        hint.textContent = `✓ ${result.name}（${result.code}）- ${exchange}`;
-        hint.style.color = '#4ade80';
-      }
-    });
-    
-    // 股票名称输入框失焦提示
-    document.getElementById('stockName').addEventListener('blur', function() {
-      const name = this.value.trim();
-      const hint = document.getElementById('stockLookupHint');
-      if (name && hint.textContent === '') {
-        hint.textContent = '⚠️ 请输入股票名称后按回车确认查询';
-        hint.style.color = '#fbbf24';
-      }
-    });
+    // 注册弹窗表单输入框事件（需在 DOMContentLoaded 后调用，因为弹窗 HTML 在 script 之后）
+    function bindModalInputEvents() {
+      const stockNameEl = document.getElementById('stockName');
+      const stockCodeEl = document.getElementById('stockCode');
+      if (!stockNameEl || !stockCodeEl) return;
 
-    // 股票代码输入 - 按回车确认后查询股票信息
-    document.getElementById('stockCode').addEventListener('keydown', async function(e) {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        const code = this.value.trim();
-        const nameInput = document.getElementById('stockName');
-        const exchangeDisplay = document.getElementById('stockExchangeDisplay');
+      // 股票名称输入 - 按回车确认后查询代码
+      stockNameEl.addEventListener('keydown', async function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const name = this.value.trim();
+          const codeInput = document.getElementById('stockCode');
+          const exchangeDisplay = document.getElementById('stockExchangeDisplay');
+          const hint = document.getElementById('stockLookupHint');
+          
+          if (!name) {
+            hint.textContent = '请输入股票名称';
+            hint.style.color = '#f87171';
+            return;
+          }
+          
+          hint.textContent = '⟳ 正在查询代码…';
+          hint.style.color = 'var(--muted)';
+          const result = await searchStockCode(name);
+          if (!result || !result.code) {
+            hint.textContent = `未找到"${name}"的代码`;
+            hint.style.color = '#f87171';
+            return;
+          }
+          codeInput.value = result.code;
+          this.value = result.name;
+          const exchange = getExchangeFromCode(result.code);
+          exchangeDisplay.value = exchange;
+          hint.textContent = `✓ ${result.name}（${result.code}）- ${exchange}`;
+          hint.style.color = '#4ade80';
+        }
+      });
+      
+      // 股票名称输入框失焦提示
+      stockNameEl.addEventListener('blur', function() {
+        const name = this.value.trim();
         const hint = document.getElementById('stockLookupHint');
-        
-        // 验证股票代码格式
-        if (!/^\d{6}$/.test(code)) {
-          hint.textContent = '请输入6位数字的股票代码';
-          hint.style.color = '#f87171';
-          return;
+        if (name && hint.textContent === '') {
+          hint.textContent = '⚠️ 请输入股票名称后按回车确认查询';
+          hint.style.color = '#fbbf24';
         }
-        
-        hint.textContent = '⟳ 正在获取股票信息…';
-        hint.style.color = 'var(--muted)';
-        
-        // 自动识别交易所
-        const exchange = getExchangeFromCode(code);
-        exchangeDisplay.value = exchange;
-        
-        const q = await fetchQuoteTencent(code);
-        if (!q || !q.name) {
-          hint.textContent = `未能获取代码 ${code} 的信息`;
-          hint.style.color = '#f87171';
-          return;
+      });
+
+      // 股票代码输入 - 按回车确认后查询股票信息
+      stockCodeEl.addEventListener('keydown', async function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const code = this.value.trim();
+          const nameInput = document.getElementById('stockName');
+          const exchangeDisplay = document.getElementById('stockExchangeDisplay');
+          const hint = document.getElementById('stockLookupHint');
+          
+          // 验证股票代码格式
+          if (!/^\d{6}$/.test(code)) {
+            hint.textContent = '请输入6位数字的股票代码';
+            hint.style.color = '#f87171';
+            return;
+          }
+          
+          hint.textContent = '⟳ 正在获取股票信息…';
+          hint.style.color = 'var(--muted)';
+          
+          // 自动识别交易所
+          const exchange = getExchangeFromCode(code);
+          exchangeDisplay.value = exchange;
+          
+          const q = await fetchQuoteTencent(code);
+          if (!q || !q.name) {
+            hint.textContent = `未能获取代码 ${code} 的信息`;
+            hint.style.color = '#f87171';
+            return;
+          }
+          
+          nameInput.value = q.name;
+          hint.textContent = `✓ ${q.name}（${code}）- ${exchange}`;
+          hint.style.color = '#4ade80';
         }
-        
-        nameInput.value = q.name;
-        hint.textContent = `✓ ${q.name}（${code}）- ${exchange}`;
-        hint.style.color = '#4ade80';
-      }
-    });
-    
-    // 股票代码输入框失焦提示
-    document.getElementById('stockCode').addEventListener('blur', function() {
-      const code = this.value.trim();
-      const hint = document.getElementById('stockLookupHint');
-      if (code && !/^\d{6}$/.test(code) && hint.textContent === '') {
-        hint.textContent = '⚠️ 请输入6位股票代码后按回车确认查询';
-        hint.style.color = '#fbbf24';
-      }
-    });
+      });
+      
+      // 股票代码输入框失焦提示
+      stockCodeEl.addEventListener('blur', function() {
+        const code = this.value.trim();
+        const hint = document.getElementById('stockLookupHint');
+        if (code && !/^\d{6}$/.test(code) && hint.textContent === '') {
+          hint.textContent = '⚠️ 请输入6位股票代码后按回车确认查询';
+          hint.style.color = '#fbbf24';
+        }
+      });
+    }
 
     // 显示删除确认弹窗
     function showDeleteModal(id, name) {
@@ -1591,7 +1644,10 @@
     });
 
     // 页面加载时初始化
-    window.addEventListener('DOMContentLoaded', init);
+    window.addEventListener('DOMContentLoaded', function() {
+      init();
+      bindModalInputEvents();
+    });
     
     // 事件委托：处理编辑、删除和详情按钮点击
     document.getElementById('stockTableBody').addEventListener('click', function(e) {

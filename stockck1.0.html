@@ -548,6 +548,41 @@
     }
     .btn-clear-all-filter:hover { background: rgba(224,58,58,.22); }
 
+    /* 分页控件 */
+    .pagination-bar {
+      display: flex; align-items: center; justify-content: center;
+      gap: 6px; padding: 16px 0 4px; flex-wrap: wrap;
+    }
+    .pagination-bar .page-info {
+      font-size: 13px; color: var(--muted); margin-right: 8px;
+      white-space: nowrap;
+    }
+    .page-btn {
+      min-width: 32px; height: 32px; border-radius: 6px; border: 1px solid var(--border);
+      background: transparent; color: var(--text); font-size: 13px; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center;
+      transition: background .15s, border-color .15s, color .15s; padding: 0 8px;
+      font-family: inherit;
+    }
+    .page-btn:hover:not(:disabled) { background: rgba(59,130,246,.12); border-color: var(--accent); color: var(--accent); }
+    .page-btn.active { background: rgba(59,130,246,.22); border-color: var(--accent); color: #93c5fd; font-weight: 600; }
+    .page-btn:disabled { opacity: .35; cursor: default; }
+    .page-jump {
+      display: inline-flex; align-items: center; gap: 4px; margin-left: 8px;
+      font-size: 13px; color: var(--muted);
+    }
+    .page-jump input {
+      width: 44px; height: 30px; text-align: center; border-radius: 6px;
+      border: 1px solid var(--border); background: rgba(255,255,255,.05);
+      color: var(--text); font-size: 13px; outline: none; font-family: inherit;
+    }
+    .page-jump input:focus { border-color: var(--accent); }
+    .page-jump button {
+      height: 30px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--border);
+      background: transparent; color: var(--muted); font-size: 12px; cursor: pointer;
+    }
+    .page-jump button:hover { border-color: var(--accent); color: var(--accent); }
+
     /* 浮动返回顶部按钮 */
     .back-to-top {
       position: fixed;
@@ -678,6 +713,9 @@
           </table>
         </div>
 
+        <!-- 分页栏 -->
+        <div class="pagination-bar" id="paginationBar"></div>
+
         <!-- 空状态 -->
         <div class="empty-state" id="emptyState" style="display:none;">
           <div class="empty-icon">📊</div>
@@ -741,6 +779,10 @@
     let deleteStockId = null;
     let editStockId = null;
     let detailStockId = null;
+
+    // 分页状态
+    const PAGE_SIZE = 40;
+    let currentPage = 1;
 
     // HTML 转义函数
     function escapeHtml(text) {
@@ -842,7 +884,9 @@
         window.sortConfig.direction = 'desc';
       }
       updateSortIcons();
-      updateTableOrder();
+      // 全量重排：对全部数据排序后重新分页（而不是只排当前页DOM）
+      currentPage = 1;
+      reRenderCurrent();
     }
 
     // 更新排序箭头图标
@@ -1043,20 +1087,30 @@
       }
     }
 
-    // 渲染股票表格
+    // 渲染股票表格（支持分页）
     function renderStocks(filteredStocks = null) {
       let stocks = filteredStocks !== null ? filteredStocks : [...allStocks];
-      
-      // 如果是全部显示（非搜索过滤），按涨跌幅从高到低排序
-      if (filteredStocks === null && stocks.length > 0) {
+
+      // 根据 sortConfig 排序（全部数据排序，分页切片在后面）
+      if (stocks.length > 0) {
         const priceData = window.stockPrices || {};
+        const kdj60Data = window.kdj60Data || {};
+        const dir = window.sortConfig.direction === 'asc' ? 1 : -1;
+
         stocks.sort((a, b) => {
-          const rateA = priceData[a.code]?.changeRate || 0;
-          const rateB = priceData[b.code]?.changeRate || 0;
-          return rateB - rateA; // 从高到低
+          if (window.sortConfig.field === 'kdj60') {
+            const jA = kdj60Data[a.code]?.j ?? -Infinity;
+            const jB = kdj60Data[b.code]?.j ?? -Infinity;
+            return dir * (jA - jB);
+          } else {
+            // 默认按涨跌幅排序
+            const rateA = priceData[a.code]?.changeRate || 0;
+            const rateB = priceData[b.code]?.changeRate || 0;
+            return dir * (rateB - rateA);
+          }
         });
       }
-      
+
       const tbody = document.getElementById('stockTableBody');
       const emptyState = document.getElementById('emptyState');
       const stockCount = document.getElementById('stockCount');
@@ -1066,6 +1120,7 @@
       if (stocks.length === 0) {
         tbody.innerHTML = '';
         emptyState.style.display = 'flex';
+        document.getElementById('paginationBar').innerHTML = '';
         if (filteredStocks !== null && allStocks.length > 0) {
           emptyState.innerHTML = '<div class="empty-icon">🔍</div><div>未找到匹配结果</div>';
         }
@@ -1075,10 +1130,22 @@
       emptyState.style.display = 'none';
       emptyState.innerHTML = '<div class="empty-icon">📊</div><div>暂无股票数据</div><button class="btn-add" onclick="showAddModal()">＋ 添加第一只股票</button>';
 
+      // ── 分页切片 ──
+      const totalPages = Math.ceil(stocks.length / PAGE_SIZE);
+      // 搜索/筛选时重置到第1页；翻页时保持当前页
+      if (filteredStocks !== null) {
+        // 筛选结果变化时，如果当前页超出范围则自动修正
+        if (currentPage > totalPages) currentPage = Math.max(1, totalPages);
+      } else {
+        if (currentPage > totalPages) currentPage = Math.max(1, totalPages);
+      }
+      const startIdx = (currentPage - 1) * PAGE_SIZE;
+      const pageData = stocks.slice(startIdx, startIdx + PAGE_SIZE);
+
       // 获取缓存的价格数据
       const priceData = window.stockPrices || {};
-      
-      tbody.innerHTML = stocks.map((stock, index) => {
+
+      tbody.innerHTML = pageData.map((stock, index) => {
         const exchangeClass = stock.exchange === '沪市' ? 'exchange-sh' : 
                               stock.exchange === '深市' ? 'exchange-sz' : 'exchange-cy';
         const stockPrice = priceData[stock.code] || {};
@@ -1095,7 +1162,7 @@
         const safeConcept2 = escapeHtml(stock.concept2 || '');
         return `
           <tr data-id="${stock.id}" data-code="${stock.code}">
-            <td>${index + 1}</td>
+            <td>${startIdx + index + 1}</td>
             <td><a href="https://quote.eastmoney.com/${marketPrefix}${stock.code}.html" target="_blank" class="stock-name-link">${safeName}</a></td>
             <td><span class="stock-code">${stock.code}</span></td>
             <td><span class="exchange-badge ${exchangeClass}">${stock.exchange}</span></td>
@@ -1120,6 +1187,115 @@
       fetchAllKDJ60();
       // 初始化滚动条同步
       initScrollSync();
+      // 渲染分页栏
+      renderPagination(stocks.length);
+    }
+
+    // 渲染分页栏
+    function renderPagination(totalItems) {
+      const bar = document.getElementById('paginationBar');
+      const totalPages = Math.ceil(totalItems / PAGE_SIZE);
+
+      if (totalPages <= 1) {
+        bar.innerHTML = '';
+        return;
+      }
+
+      const info = `<span class="page-info">${currentPage} / ${totalPages} 页，共 ${totalItems} 条</span>`;
+
+      let btns = '';
+      // 首页/上一页
+      btns += `<button class="page-btn" onclick="goToPage(1)" ${currentPage === 1 ? 'disabled' : ''}>首页</button>`;
+      btns += `<button class="page-btn" onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>‹</button>`;
+
+      // 页码按钮（最多显示7个页码，当前页居中）
+      let startPage = Math.max(1, currentPage - 3);
+      let endPage = Math.min(totalPages, startPage + 6);
+      if (endPage - startPage < 6) { startPage = Math.max(1, endPage - 6); }
+
+      if (startPage > 1) {
+        btns += `<button class="page-btn" onclick="goToPage(1)">1</button>`;
+        if (startPage > 2) btns += `<span style="color:var(--muted);font-size:13px;">…</span>`;
+      }
+      for (let p = startPage; p <= endPage; p++) {
+        btns += `<button class="page-btn ${p === currentPage ? 'active' : ''}" onclick="goToPage(${p})">${p}</button>`;
+      }
+      if (endPage < totalPages) {
+        if (endPage < totalPages - 1) btns += `<span style="color:var(--muted);font-size:13px;">…</span>`;
+        btns += `<button class="page-btn" onclick="goToPage(${totalPages})">${totalPages}</button>`;
+      }
+
+      // 下一页/末页
+      btns += `<button class="page-btn" onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>›</button>`;
+      btns += `<button class="page-btn" onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>末页</button>`;
+
+      // 跳转
+      const jump = `
+        <span class="page-jump">跳至<input type="number" id="pageJumpInput" min="1" max="${totalPages}" value="${currentPage}" onkeydown="if(event.key==='Enter')jumpToPage(${totalPages})">页
+        <button onclick="jumpToPage(${totalPages})">GO</button></span>`;
+
+      bar.innerHTML = info + btns + jump;
+    }
+
+    // 跳转到指定页
+    function goToPage(page) {
+      const stocks = getCurrentFilteredStocks();
+      const totalPages = Math.ceil(stocks.length / PAGE_SIZE);
+      if (page < 1 || page > totalPages) return;
+      currentPage = page;
+      reRenderCurrent();
+      // 平滑滚动到表格顶部
+      document.getElementById('tableScrollWrapper').scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // 输入框跳转
+    function jumpToPage(totalPages) {
+      const input = document.getElementById('pageJumpInput');
+      if (!input) return;
+      const page = parseInt(input.value);
+      if (isNaN(page) || page < 1 || page > totalPages) {
+        input.style.borderColor = '#e03a3a';
+        setTimeout(() => input.style.borderColor = '', 800);
+        return;
+      }
+      goToPage(page);
+    }
+
+    // 获取当前筛选后的数据（用于翻页时保持筛选状态）
+    function getCurrentFilteredStocks() {
+      const c1 = filterState.concept1;
+      const c2 = filterState.concept2;
+
+      let result = allStocks;
+      if (c1.size > 0) result = result.filter(s => c1.has((s.concept1 || '').trim()));
+      if (c2.size > 0) result = result.filter(s => c2.has((s.concept2 || '').trim()));
+
+      // 检查是否有搜索关键词
+      const keyword = document.getElementById('globalSearch').value.trim().toLowerCase();
+      if (keyword) {
+        result = result.filter(stock =>
+          stock.name.toLowerCase().includes(keyword) ||
+          stock.code.toLowerCase().includes(keyword) ||
+          (stock.concept1 && stock.concept1.toLowerCase().includes(keyword)) ||
+          (stock.concept2 && stock.concept2.toLowerCase().includes(keyword))
+        );
+      }
+
+      return result;
+    }
+
+    // 用当前筛选条件重新渲染（翻页用）
+    function reRenderCurrent() {
+      const filtered = getCurrentFilteredStocks();
+      const hasFilter = filterState.concept1.size > 0 || filterState.concept2.size > 0;
+      const keyword = document.getElementById('globalSearch').value.trim().toLowerCase();
+      const hasSearch = !!keyword;
+
+      if (!hasFilter && !hasSearch) {
+        renderStocks(null);  // 全部显示
+      } else {
+        renderStocks(filtered);  // 筛选/搜索结果
+      }
     }
 
     // 搜索功能
@@ -1132,6 +1308,7 @@
 
       if (!keyword) {
         searchResults.style.display = 'none';
+        currentPage = 1;
         renderStocks();
         return;
       }
@@ -1165,6 +1342,7 @@
       }
       
       searchResults.style.display = 'block';
+      currentPage = 1;
       renderStocks(matchedStocks);
     }
 
@@ -1689,6 +1867,7 @@
     document.getElementById('globalSearch').addEventListener('input', function() {
       if (!this.value.trim()) {
         document.getElementById('searchResults').style.display = 'none';
+        currentPage = 1;
         renderStocks();
       }
     });
@@ -1698,6 +1877,7 @@
       if (e.key === 'Escape') {
         this.value = '';
         document.getElementById('searchResults').style.display = 'none';
+        currentPage = 1;
         renderStocks();
       }
     });
@@ -1894,6 +2074,7 @@
       if (c2.size > 0) {
         result = result.filter(s => c2.has((s.concept2 || '').trim()));
       }
+      currentPage = 1;
       renderStocks(c1.size === 0 && c2.size === 0 ? null : result);
     }
 
@@ -1943,6 +2124,7 @@
       filterState.concept2.clear();
       updateFilterBtnState('concept1');
       updateFilterBtnState('concept2');
+      currentPage = 1;
       renderStocks(null);
       updateFilterActiveBar();
     }

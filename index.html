@@ -4,6 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>持仓首页</title>
+    <script>
+        (function() {
+            var isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|Windows Phone/i.test(navigator.userAgent);
+            var isSmall = window.innerWidth <= 768;
+            if (isMobile || isSmall) {
+                window.location.replace('index-mobile.html');
+            }
+        })();
+    </script>
     <style>
         * {
             margin: 0;

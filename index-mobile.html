@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>持仓跟踪</title>
+    <style>
+        :root {
+            --bg: #f5f6fa;
+            --card-bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #888;
+            --text-tertiary: #bbb;
+            --border: #e8e8ec;
+            --danger: #e74c3c;
+            --success: #27ae60;
+            --primary: #4a6cf7;
+            --primary-light: #eef1ff;
+            --kdj-hot: #7c3aed;
+            --kdj-hot-bg: #f5f3ff;
+            --kdj-cold: #059669;
+            --kdj-cold-bg: #ecfdf5;
+            --kdj-mid: #6366f1;
+            --kdj-mid-bg: #eef2ff;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding-bottom: 70px;
+            -webkit-tap-highlight-color: transparent;
+            font-size: 14px;
+        }
+
+        .header {
+            background: var(--card-bg);
+            padding: 12px 14px;
+            border-bottom: 0.5px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .search-box {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            background: #f0f1f5;
+            border-radius: 10px;
+            padding: 0 12px;
+            height: 40px;
+        }
+
+        .search-box svg {
+            width: 18px;
+            height: 18px;
+            color: #999;
+            flex-shrink: 0;
+        }
+
+        .search-box input {
+            flex: 1;
+            border: none;
+            background: none;
+            font-size: 14px;
+            margin-left: 8px;
+            color: var(--text);
+            outline: none;
+            min-width: 0;
+        }
+
+        .search-box input::placeholder { color: #bbb; }
+
+        .btn-add {
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 0 16px;
+            height: 40px;
+            font-size: 14px;
+            font-weight: 500;
+            white-space: nowrap;
+            cursor: pointer;
+        }
+
+        .btn-add:active { opacity: 0.8; }
+
+        .index-bar {
+            display: flex;
+            gap: 16px;
+            padding: 6px 0 0 0;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .index-bar .idx { display: flex; align-items: center; gap: 4px; text-decoration: none; color: inherit; }
+        .index-bar .idx-val { font-weight: 500; color: var(--text); }
+        .index-bar .idx-chg { font-weight: 500; }
+        .idx-up { color: var(--danger); }
+        .idx-down { color: var(--success); }
+
+        .sort-bar {
+            display: flex;
+            background: var(--card-bg);
+            padding: 8px 14px;
+            gap: 6px;
+            border-bottom: 0.5px solid var(--border);
+            position: sticky;
+            top: 100px;
+            z-index: 99;
+        }
+
+        .sort-btn {
+            flex: 1;
+            border: 0.5px solid var(--border);
+            background: #fff;
+            border-radius: 8px;
+            padding: 7px 0;
+            font-size: 12px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.15s;
+        }
+
+        .sort-btn.active {
+            background: var(--primary-light);
+            border-color: var(--primary);
+            color: var(--primary);
+            font-weight: 500;
+        }
+
+        .sort-btn:active { opacity: 0.7; }
+
+        .stock-list {
+            padding: 10px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .stock-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            border: 0.5px solid var(--border);
+            padding: 14px 16px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .stock-card:active { background: #fafafa; }
+
+        .card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .card-name-row {
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+        }
+
+        .card-name {
+            font-weight: 500;
+            font-size: 16px;
+        }
+
+        .card-code {
+            font-size: 11px;
+            color: var(--text-tertiary);
+        }
+
+        .card-market {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        .card-price-block {
+            text-align: right;
+        }
+
+        .card-current {
+            font-size: 22px;
+            font-weight: 500;
+            line-height: 1.2;
+        }
+
+        .card-change {
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .card-change.profit, .card-meta b.profit, .detail-value.profit { color: var(--danger); }
+        .card-change.loss, .card-meta b.loss, .detail-value.loss { color: var(--success); }
+
+        .card-detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 12px;
+            font-size: 12px;
+        }
+
+        .card-meta {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            color: var(--text-secondary);
+        }
+
+        .card-meta b { color: var(--text); font-weight: 500; }
+
+        .kdj-tag {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-weight: 500;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .kdj-hot { background: var(--kdj-hot-bg); color: var(--kdj-hot); }
+        .kdj-cold { background: var(--kdj-cold-bg); color: var(--kdj-cold); }
+        .kdj-mid { background: var(--kdj-mid-bg); color: var(--kdj-mid); }
+
+        .card-note {
+            margin-top: 10px;
+            font-size: 11px;
+            color: var(--text-tertiary);
+            border-top: 0.5px solid var(--border);
+            padding-top: 8px;
+            line-height: 1.5;
+        }
+
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--card-bg);
+            border-top: 0.5px solid var(--border);
+            display: flex;
+            justify-content: space-around;
+            padding: 8px 0 env(safe-area-inset-bottom, 8px) 0;
+            z-index: 100;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            font-size: 10px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 4px 16px;
+        }
+
+        .nav-item.active { color: var(--primary); }
+        .nav-item svg { width: 22px; height: 22px; }
+        .nav-item.active svg { color: var(--primary); }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
+        .empty {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-tertiary);
+            font-size: 14px;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.4);
+            z-index: 200;
+            display: none;
+            justify-content: center;
+            align-items: flex-end;
+        }
+
+        .modal-overlay.active { display: flex; }
+
+        .modal-sheet {
+            background: var(--card-bg);
+            border-radius: 16px 16px 0 0;
+            width: 100%;
+            max-width: 500px;
+            max-height: 85vh;
+            overflow-y: auto;
+            padding: 20px 16px 32px;
+            animation: slideUp 0.25s ease;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+
+        .modal-title {
+            font-size: 17px;
+            font-weight: 500;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 14px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .form-group input, .form-group textarea {
+            width: 100%;
+            border: 0.5px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 14px;
+            background: #f9f9fb;
+            color: var(--text);
+            outline: none;
+        }
+
+        .form-group input:focus, .form-group textarea:focus {
+            border-color: var(--primary);
+            background: #fff;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .form-row .form-group { flex: 1; }
+
+        .btn-primary {
+            width: 100%;
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 12px;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            margin-top: 4px;
+        }
+
+        .btn-primary:active { opacity: 0.8; }
+
+        .btn-secondary {
+            width: 100%;
+            background: #f0f1f5;
+            color: var(--text-secondary);
+            border: none;
+            border-radius: 10px;
+            padding: 10px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+
+        .btn-danger {
+            width: 100%;
+            background: #fee;
+            color: var(--danger);
+            border: none;
+            border-radius: 10px;
+            padding: 10px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+
+        .detail-section {
+            padding: 12px 0;
+            border-bottom: 0.5px solid var(--border);
+        }
+
+        .detail-section:last-child { border-bottom: none; }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            font-size: 14px;
+        }
+
+        .detail-label { color: var(--text-secondary); }
+        .detail-value { font-weight: 500; }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 13px;
+            z-index: 300;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+
+        .toast.show { opacity: 1; }
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger); }
+
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 14px;
+            right: 14px;
+            background: var(--card-bg);
+            border-radius: 10px;
+            border: 0.5px solid var(--border);
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 50;
+            display: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        .search-results.active { display: block; }
+
+        .search-result-item {
+            padding: 10px 14px;
+            font-size: 13px;
+            border-bottom: 0.5px solid var(--border);
+            cursor: pointer;
+        }
+
+        .search-result-item:last-child { border-bottom: none; }
+        .search-result-item:active { background: #f5f6fa; }
+    </style>
+</head>
+<body>
+
+<div class="header" id="headerArea">
+    <div class="header-row">
+        <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="searchInput" placeholder="搜索股票名称/代码" autocomplete="off">
+        </div>
+        <button class="btn-add" onclick="showAddForm()">+ 添加</button>
+    </div>
+    <div class="index-bar" id="indexBar">
+        <a class="idx" href="https://quote.eastmoney.com/zs000001.html" target="_blank">上证 <span class="idx-val" id="idxSH">--</span> <span class="idx-chg" id="idxSHChg">--</span></a>
+        <a class="idx" href="https://quote.eastmoney.com/zs399006.html" target="_blank">创业板 <span class="idx-val" id="idxCY">--</span> <span class="idx-chg" id="idxCYChg">--</span></a>
+    </div>
+    <div class="search-results" id="searchResults"></div>
+</div>
+
+<div class="sort-bar">
+    <button class="sort-btn active" onclick="setSort('default')">默认</button>
+    <button class="sort-btn" id="sortChange" onclick="setSort('changeRate')">涨跌幅</button>
+    <button class="sort-btn" id="sortKdj" onclick="setSort('kdj60')">KDJ60</button>
+</div>
+
+<div class="stock-list" id="stockList">
+    <div class="loading">加载中...</div>
+</div>
+
+<div class="bottom-nav">
+    <div class="nav-item active" onclick="switchTab('home')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        首页
+    </div>
+    <div class="nav-item" onclick="switchTab('analysis')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        分析
+    </div>
+    <div class="nav-item" onclick="switchTab('settings')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        设置
+    </div>
+</div>
+
+<div class="modal-overlay" id="formModal">
+    <div class="modal-sheet">
+        <div class="modal-title" id="formTitle">添加股票</div>
+        <div class="form-group">
+            <label>股票名称</label>
+            <input type="text" id="stockName" placeholder="输入后自动查代码" autocomplete="off">
+        </div>
+        <div class="form-group">
+            <label>股票代码</label>
+            <input type="text" id="stockCode" placeholder="6位数字代码" autocomplete="off" maxlength="6">
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>成本价</label>
+                <input type="number" id="stockCost" placeholder="0.00" step="0.01">
+            </div>
+            <div class="form-group">
+                <label>持仓数量</label>
+                <input type="number" id="stockQuantity" placeholder="100" value="100">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>目标价</label>
+            <input type="number" id="stockTarget" placeholder="可选" step="0.01">
+        </div>
+        <div class="form-group">
+            <label>备注</label>
+            <textarea id="stockNotes" placeholder="可选" rows="2"></textarea>
+        </div>
+        <input type="hidden" id="stockId">
+        <button class="btn-primary" onclick="saveStock()">保存</button>
+        <button class="btn-secondary" onclick="closeForm()">取消</button>
+    </div>
+</div>
+
+<div class="modal-overlay" id="detailModal">
+    <div class="modal-sheet" id="detailContent"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let supabaseUrl = '';
+let supabaseKey = '';
+let currentSort = 'default';
+let sortDirection = { changeRate: 'desc', kdj60: 'desc' };
+let stockPrices = {};
+let kdj60Data = {};
+let cachedStocks = [];
+let editingId = null;
+let priceTimer = null;
+let kdjTimer = null;
+
+async function supabaseFetch(endpoint, options = {}, timeoutMs = 15000) {
+    const url = supabaseUrl + '/rest/v1/' + endpoint;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        const resp = await fetch(url, {
+            ...options,
+            headers: {
+                'apikey': supabaseKey,
+                'Authorization': 'Bearer ' + supabaseKey,
+                'Content-Type': 'application/json',
+                ...options.headers
+            },
+            signal: controller.signal
+        });
+        clearTimeout(timeout);
+        return resp;
+    } catch (e) {
+        clearTimeout(timeout);
+        throw e;
+    }
+}
+
+function toast(msg, type) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'toast ' + (type || '') + ' show';
+    setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+function escapeHtml(s) {
+    if (!s) return '';
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
+
+function getMarketByCode(code) {
+    if (!code) return '';
+    if (code.startsWith('6')) return '上交所';
+    if (code.startsWith('0') || code.startsWith('3')) return '深交所';
+    if (code.startsWith('8') || code.startsWith('4') || code.startsWith('83')) return '北交所';
+    return '';
+}
+
+function getMarketShort(code) {
+    if (!code) return '';
+    if (code.startsWith('6')) return '沪市';
+    if (code.startsWith('0') || code.startsWith('3')) return '深市';
+    if (code.startsWith('8') || code.startsWith('4')) return '北交';
+    return '';
+}
+
+function getEastMoneyUrl(code) {
+    if (!code) return '#';
+    if (code.startsWith('6')) return 'https://quote.eastmoney.com/sh' + code + '.html';
+    return 'https://quote.eastmoney.com/sz' + code + '.html';
+}
+
+/* ===== Index Data ===== */
+function fetchIndexData() {
+    fetchSingleIndex('sh000001', 'idxSH', 'idxSHChg');
+    fetchSingleIndex('sz399006', 'idxCY', 'idxCYChg');
+}
+
+function fetchSingleIndex(sym, valId, chgId) {
+    const script = document.createElement('script');
+    script.src = 'https://qt.gtimg.cn/q=' + sym;
+    script.onload = () => {
+        try {
+            const data = window['v_' + sym];
+            if (!data) return;
+            const p = data.split('~');
+            const price = parseFloat(p[3]) || 0;
+            const chg = parseFloat(p[32]) || 0;
+            const valEl = document.getElementById(valId);
+            const chgEl = document.getElementById(chgId);
+            if (valEl) valEl.textContent = price.toFixed(2);
+            if (chgEl) {
+                chgEl.textContent = (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%';
+                chgEl.className = 'idx-chg ' + (chg >= 0 ? 'idx-up' : 'idx-down');
+                if (valEl) valEl.className = 'idx-val ' + (chg >= 0 ? 'idx-up' : 'idx-down');
+            }
+        } catch(e) {}
+        if (document.body.contains(script)) document.body.removeChild(script);
+    };
+    script.onerror = () => { if (document.body.contains(script)) document.body.removeChild(script); };
+    document.body.appendChild(script);
+}
+
+/* ===== Price Fetching ===== */
+async function fetchStockPrices(codes) {
+    const unique = [...new Set(codes)];
+    for (const code of unique) {
+        await fetchSinglePrice(code);
+    }
+}
+
+function fetchSinglePrice(code) {
+    return new Promise(resolve => {
+        let sym;
+        if (code.startsWith('6')) sym = 'sh' + code;
+        else if (code.startsWith('0') || code.startsWith('3')) sym = 'sz' + code;
+        else if (code.startsWith('8') || code.startsWith('4')) sym = 'bj' + code;
+        else { resolve(); return; }
+
+        const script = document.createElement('script');
+        script.src = 'https://qt.gtimg.cn/q=' + sym;
+        const timer = setTimeout(() => { resolve(); if (document.body.contains(script)) document.body.removeChild(script); }, 6000);
+        script.onload = () => {
+            clearTimeout(timer);
+            try {
+                const data = window['v_' + sym];
+                if (data) {
+                    const p = data.split('~');
+                    stockPrices[code] = {
+                        price: parseFloat(p[3]) || 0,
+                        changeRate: parseFloat(p[32]) || 0
+                    };
+                }
+            } catch(e) {}
+            if (document.body.contains(script)) document.body.removeChild(script);
+            delete window['v_' + sym];
+            resolve();
+        };
+        script.onerror = () => { clearTimeout(timer); resolve(); if (document.body.contains(script)) document.body.removeChild(script); };
+        document.body.appendChild(script);
+    });
+}
+
+/* ===== KDJ60 ===== */
+async function fetchAllKDJ60(codes) {
+    const unique = [...new Set(codes)];
+    for (const code of unique) {
+        await fetchKDJ60(code);
+    }
+}
+
+async function fetchKDJ60(code) {
+    try {
+        let prefix;
+        if (code.startsWith('6')) prefix = 'sh';
+        else if (code.startsWith('0') || code.startsWith('3')) prefix = 'sz';
+        else if (code.startsWith('8') || code.startsWith('4')) prefix = 'bj';
+        else prefix = 'sh';
+
+        const url = 'https://ifzq.gtimg.cn/appstock/app/kline/mkline?param=' + prefix + code + ',m60,,100';
+        const resp = await fetch(url);
+        const text = await resp.text();
+        const result = JSON.parse(text);
+        const stockData = result.data && result.data[prefix + code];
+        if (!stockData || !stockData.m60 || stockData.m60.length < 9) return;
+
+        const klines = stockData.m60;
+        const closes = [], highs = [], lows = [];
+        for (const k of klines) {
+            closes.push(parseFloat(k[2]));
+            highs.push(parseFloat(k[3]));
+            lows.push(parseFloat(k[4]));
+        }
+
+        const n = 9;
+        let kVal = 50, dVal = 50;
+        for (let i = n - 1; i < closes.length; i++) {
+            let hi = -Infinity, lo = Infinity;
+            for (let j = i - n + 1; j <= i; j++) {
+                if (highs[j] > hi) hi = highs[j];
+                if (lows[j] < lo) lo = lows[j];
+            }
+            const rsv = (hi === lo) ? 50 : (closes[i] - lo) / (hi - lo) * 100;
+            kVal = 2/3 * kVal + 1/3 * rsv;
+            dVal = 2/3 * dVal + 1/3 * kVal;
+        }
+        const jVal = 3 * kVal - 2 * dVal;
+        kdj60Data[code] = { k: kVal, d: dVal, j: jVal };
+    } catch(e) {
+        console.error('KDJ60 fetch failed:', code, e);
+    }
+}
+
+/* ===== Sort ===== */
+function setSort(sort) {
+    if (sort !== 'default') {
+        if (currentSort === sort) {
+            sortDirection[sort] = sortDirection[sort] === 'desc' ? 'asc' : 'desc';
+        } else {
+            sortDirection[sort] = 'desc';
+        }
+    }
+    currentSort = sort;
+    document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+    if (sort === 'default') {
+        document.querySelector('.sort-btn:first-child').classList.add('active');
+    } else if (sort === 'changeRate') {
+        const btn = document.getElementById('sortChange');
+        btn.classList.add('active');
+        btn.textContent = '涨跌幅 ' + (sortDirection.changeRate === 'desc' ? '↓' : '↑');
+    } else if (sort === 'kdj60') {
+        const btn = document.getElementById('sortKdj');
+        btn.classList.add('active');
+        btn.textContent = 'KDJ60 ' + (sortDirection.kdj60 === 'desc' ? '↓' : '↑');
+    }
+    renderCards();
+}
+
+function getSortedStocks() {
+    const stocks = [...cachedStocks];
+    if (currentSort === 'default') {
+        return stocks.sort((a, b) => {
+            const pa = stockPrices[a.stock_code]?.price || 0;
+            const ca = a.cost_price || 0;
+            const pb = stockPrices[b.stock_code]?.price || 0;
+            const cb = b.cost_price || 0;
+            const ra = ca > 0 && pa > 0 ? (pa - ca) / ca : -Infinity;
+            const rb = cb > 0 && pb > 0 ? (pb - cb) / cb : -Infinity;
+            return rb - ra;
+        });
+    }
+    if (currentSort === 'changeRate') {
+        const dir = sortDirection.changeRate === 'desc' ? -1 : 1;
+        return stocks.sort((a, b) => {
+            const ra = stockPrices[a.stock_code]?.changeRate || 0;
+            const rb = stockPrices[b.stock_code]?.changeRate || 0;
+            return (rb - ra) * dir;
+        });
+    }
+    if (currentSort === 'kdj60') {
+        const dir = sortDirection.kdj60 === 'desc' ? -1 : 1;
+        return stocks.sort((a, b) => {
+            const ja = kdj60Data[a.stock_code]?.j || 0;
+            const jb = kdj60Data[b.stock_code]?.j || 0;
+            return (jb - ja) * dir;
+        });
+    }
+    return stocks;
+}
+
+/* ===== Render ===== */
+function renderCards() {
+    const container = document.getElementById('stockList');
+    const stocks = getSortedStocks();
+
+    if (!stocks.length) {
+        container.innerHTML = '<div class="empty">暂无持仓，点击右上角添加</div>';
+        return;
+    }
+
+    container.innerHTML = stocks.map(s => {
+        const code = s.stock_code;
+        const price = stockPrices[code]?.price || 0;
+        const chgRate = stockPrices[code]?.changeRate || 0;
+        const cost = s.cost_price || 0;
+        const qty = s.quantity || 100;
+        const target = cost > 0 ? (cost * 1.03).toFixed(2) : '';
+        const jVal = kdj60Data[code]?.j;
+        const profit = cost > 0 && price > 0 ? ((price - cost) * qty).toFixed(2) : 0;
+        const profitRate = cost > 0 && price > 0 ? ((price - cost) / cost * 100).toFixed(2) : 0;
+        const isUp = chgRate >= 0;
+        const profitClass = profit >= 0 ? 'profit' : 'loss';
+        const profitSign = profit >= 0 ? '+' : '';
+
+        let kdjHtml = '';
+        if (jVal !== undefined && jVal !== null) {
+            let cls = 'kdj-mid';
+            if (jVal > 80) cls = 'kdj-hot';
+            else if (jVal < 20) cls = 'kdj-cold';
+            kdjHtml = '<span class="kdj-tag ' + cls + '">J:' + jVal.toFixed(1) + '</span>';
+        } else {
+            kdjHtml = '<span class="kdj-tag" style="color:#ccc;">J:--</span>';
+        }
+
+        return '<div class="stock-card" onclick="openDetail(\'' + escapeHtml(code) + '\')">' +
+            '<div class="card-top">' +
+                '<div>' +
+                    '<div class="card-name-row">' +
+                        '<span class="card-name">' + escapeHtml(s.stock_name) + '</span>' +
+                        '<span class="card-code">' + escapeHtml(code) + '</span>' +
+                    '</div>' +
+                    '<div class="card-market">' + getMarketShort(code) + '</div>' +
+                '</div>' +
+                '<div class="card-price-block">' +
+                    '<div class="card-current">' + (price > 0 ? price.toFixed(2) : '--') + '</div>' +
+                    '<div class="card-change ' + (isUp ? 'profit' : 'loss') + '">' +
+                        (chgRate !== 0 ? (chgRate >= 0 ? '+' : '') + chgRate.toFixed(2) + '%' : '--') +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+            '<div class="card-detail-row">' +
+                '<div class="card-meta">' +
+                    '<span>成本 <b>' + (cost > 0 ? cost.toFixed(2) : '--') + '</b></span>' +
+                    '<span>持有 <b>' + qty + '股</b></span>' +
+                    '<span>盈亏 <b class="' + profitClass + '">' + (cost > 0 && price > 0 ? profitSign + profit : '--') + '</b></span>' +
+                    '<span>盈亏率 <b class="' + profitClass + '">' + (cost > 0 && price > 0 ? profitSign + profitRate + '%' : '--') + '</b></span>' +
+                    '<span>目标 <b>' + (target ? target : '--') + '</b></span>' +
+                '</div>' +
+                kdjHtml +
+            '</div>' +
+            (s.notes ? '<div class="card-note">' + escapeHtml(s.notes) + '</div>' : '') +
+        '</div>';
+    }).join('');
+}
+
+/* ===== Detail Modal ===== */
+function openDetail(code) {
+    const stock = cachedStocks.find(s => s.stock_code === code);
+    if (!stock) return;
+
+    const price = stockPrices[code]?.price || 0;
+    const chgRate = stockPrices[code]?.changeRate || 0;
+    const cost = stock.cost_price || 0;
+    const qty = stock.quantity || 100;
+    const target = cost > 0 ? (cost * 1.03).toFixed(2) : '';
+    const jVal = kdj60Data[code]?.j;
+    const profit = cost > 0 && price > 0 ? ((price - cost) * qty).toFixed(2) : 0;
+    const profitRate = cost > 0 && price > 0 ? ((price - cost) / cost * 100).toFixed(2) : 0;
+    const isUp = chgRate >= 0;
+    const profitClass = profit >= 0 ? 'profit' : 'loss';
+    const profitSign = profit >= 0 ? '+' : '';
+    const chgSign = chgRate >= 0 ? '+' : '';
+
+    let kdjText = '--';
+    let kdjColor = '';
+    if (jVal !== undefined && jVal !== null) {
+        kdjText = jVal.toFixed(1);
+        kdjColor = jVal > 80 ? 'color:#7c3aed;' : jVal < 20 ? 'color:#059669;' : 'color:#6366f1;';
+    }
+
+    document.getElementById('detailContent').innerHTML =
+        '<div class="modal-title">' + escapeHtml(stock.stock_name) + ' <span style="font-size:12px;color:#bbb;">' + escapeHtml(code) + '</span></div>' +
+        '<div style="display:flex;justify-content:space-around;padding:16px 0;border-bottom:0.5px solid var(--border);">' +
+            '<div style="text-align:center;"><div style="font-size:12px;color:#888;">当前价</div><div style="font-size:22px;font-weight:500;margin-top:4px;">' + (price > 0 ? price.toFixed(2) : '--') + '</div></div>' +
+            '<div style="text-align:center;"><div style="font-size:12px;color:#888;">涨跌幅</div><div style="font-size:22px;font-weight:500;margin-top:4px;' + (isUp ? 'color:#e74c3c' : 'color:#27ae60') + '">' + chgSign + chgRate.toFixed(2) + '%</div></div>' +
+            '<div style="text-align:center;"><div style="font-size:12px;color:#888;">KDJ60-J</div><div style="font-size:22px;font-weight:500;margin-top:4px;' + kdjColor + '">' + kdjText + '</div></div>' +
+        '</div>' +
+        '<div class="detail-section">' +
+            '<div class="detail-row"><span class="detail-label">成本价</span><span class="detail-value">' + (cost > 0 ? cost.toFixed(2) : '--') + '</span></div>' +
+            '<div class="detail-row"><span class="detail-label">持仓数量</span><span class="detail-value">' + qty + '股</span></div>' +
+            '<div class="detail-row"><span class="detail-label">目标价</span><span class="detail-value">' + (target || '--') + '</span></div>' +
+            '<div class="detail-row"><span class="detail-label">持仓收益</span><span class="detail-value ' + profitClass + '">' + (cost > 0 && price > 0 ? profitSign + profit : '--') + '</span></div>' +
+            '<div class="detail-row"><span class="detail-label">盈亏率</span><span class="detail-value ' + profitClass + '">' + (cost > 0 && price > 0 ? profitSign + profitRate + '%' : '--') + '</span></div>' +
+        '</div>' +
+        (stock.notes ? '<div class="detail-section"><div style="font-size:13px;color:#888;">备注</div><div style="font-size:14px;margin-top:4px;">' + escapeHtml(stock.notes) + '</div></div>' : '') +
+        '<button class="btn-primary" onclick="editFromDetail(\'' + escapeHtml(code) + '\')">编辑</button>' +
+        '<button class="btn-danger" onclick="deleteFromDetail(\'' + escapeHtml(code) + '\')">删除</button>' +
+        '<a href="' + getEastMoneyUrl(code) + '" target="_blank" style="display:block;text-align:center;font-size:13px;color:var(--primary);padding:10px 0;text-decoration:none;">查看东方财富个股详情 →</a>' +
+        '<button class="btn-secondary" onclick="closeDetail()">关闭</button>';
+
+    document.getElementById('detailModal').classList.add('active');
+}
+
+function closeDetail() {
+    document.getElementById('detailModal').classList.remove('active');
+}
+
+function editFromDetail(code) {
+    const stock = cachedStocks.find(s => s.stock_code === code);
+    if (!stock) return;
+    closeDetail();
+    editStock(stock);
+}
+
+async function deleteFromDetail(code) {
+    const stock = cachedStocks.find(s => s.stock_code === code);
+    if (!stock) return;
+    if (!confirm('确定删除 ' + stock.stock_name + '？')) return;
+    try {
+        const resp = await supabaseFetch('stocks?id=eq.' + stock.id, { method: 'DELETE' });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        toast('删除成功', 'success');
+        closeDetail();
+        loadStocks();
+    } catch(e) {
+        toast('删除失败: ' + e.message, 'error');
+    }
+}
+
+/* ===== Form ===== */
+function showAddForm() {
+    editingId = null;
+    document.getElementById('formTitle').textContent = '添加股票';
+    document.getElementById('stockName').value = '';
+    document.getElementById('stockCode').value = '';
+    document.getElementById('stockCost').value = '';
+    document.getElementById('stockQuantity').value = '100';
+    document.getElementById('stockTarget').value = '';
+    document.getElementById('stockNotes').value = '';
+    document.getElementById('stockId').value = '';
+    document.getElementById('formModal').classList.add('active');
+}
+
+function closeForm() {
+    document.getElementById('formModal').classList.remove('active');
+}
+
+function editStock(stock) {
+    editingId = stock.id;
+    document.getElementById('formTitle').textContent = '编辑股票';
+    document.getElementById('stockName').value = stock.stock_name;
+    document.getElementById('stockCode').value = stock.stock_code;
+    document.getElementById('stockCost').value = stock.cost_price || '';
+    document.getElementById('stockQuantity').value = stock.quantity || 100;
+    const cost = stock.cost_price || 0;
+    document.getElementById('stockTarget').value = cost > 0 ? (cost * 1.03).toFixed(2) : '';
+    document.getElementById('stockNotes').value = stock.notes || '';
+    document.getElementById('stockId').value = stock.id;
+    document.getElementById('formModal').classList.add('active');
+}
+
+async function saveStock() {
+    const id = document.getElementById('stockId').value;
+    const code = document.getElementById('stockCode').value.trim();
+    const name = document.getElementById('stockName').value.trim();
+    const cost = parseFloat(document.getElementById('stockCost').value) || 0;
+    const qty = parseInt(document.getElementById('stockQuantity').value) || 100;
+    const notes = document.getElementById('stockNotes').value.trim();
+
+    if (!code || !name) { toast('请填写名称和代码', 'error'); return; }
+    if (!/^\d{6}$/.test(code)) { toast('代码需为6位数字', 'error'); return; }
+
+    const data = {
+        stock_name: name,
+        stock_code: code,
+        market: getMarketByCode(code),
+        cost_price: cost,
+        quantity: qty,
+        notes: notes
+    };
+
+    try {
+        let resp;
+        if (editingId) {
+            resp = await supabaseFetch('stocks?id=eq.' + editingId, {
+                method: 'PATCH', body: JSON.stringify(data),
+                headers: { 'Prefer': 'return=minimal' }
+            });
+        } else {
+            resp = await supabaseFetch('stocks', {
+                method: 'POST', body: JSON.stringify([data]),
+                headers: { 'Prefer': 'return=minimal' }
+            });
+        }
+        if (!resp.ok) {
+            const txt = await resp.text();
+            if (txt.includes('23505')) throw new Error('股票代码已存在');
+            throw new Error(txt || 'HTTP ' + resp.status);
+        }
+        toast(editingId ? '更新成功' : '添加成功', 'success');
+        closeForm();
+        loadStocks();
+    } catch(e) {
+        toast('操作失败: ' + e.message, 'error');
+    }
+}
+
+/* ===== Name/Code Auto-lookup ===== */
+async function stockNameLookup(name) {
+    if (!name) return;
+    const cb = '_ef_' + Date.now();
+    const script = document.createElement('script');
+    const timer = setTimeout(() => { if (document.body.contains(script)) document.body.removeChild(script); delete window[cb]; }, 6000);
+    window[cb] = function(data) {
+        clearTimeout(timer);
+        if (document.body.contains(script)) document.body.removeChild(script);
+        delete window[cb];
+        try {
+            const items = data?.QuotationCodeTable?.Data;
+            if (items && items.length) {
+                const exact = items.find(x => x.Name === name) || items[0];
+                const raw = exact.Code || '';
+                const cd = raw.replace(/^[A-Za-z]+/, '').trim();
+                document.getElementById('stockCode').value = cd;
+                document.getElementById('stockName').value = exact.Name || name;
+            }
+        } catch(e) {}
+    };
+    script.src = 'https://searchapi.eastmoney.com/api/suggest/get?input=' + encodeURIComponent(name) + '&type=14&token=D43BF722C8E33BDC906FB84D85E326284&count=5&cb=' + cb;
+    script.onerror = () => { clearTimeout(timer); if (document.body.contains(script)) document.body.removeChild(script); delete window[cb]; };
+    document.body.appendChild(script);
+}
+
+async function stockCodeLookup(code) {
+    if (!code || !/^\d{6}$/.test(code)) return;
+    let sym;
+    if (code.startsWith('6')) sym = 'sh' + code;
+    else sym = 'sz' + code;
+    const script = document.createElement('script');
+    script.src = 'https://qt.gtimg.cn/q=' + sym;
+    script.onload = () => {
+        try {
+            const data = window['v_' + sym];
+            if (data) {
+                const parts = data.split('~');
+                document.getElementById('stockName').value = parts[1] || '';
+            }
+        } catch(e) {}
+        if (document.body.contains(script)) document.body.removeChild(script);
+    };
+    script.onerror = () => { if (document.body.contains(script)) document.body.removeChild(script); };
+    document.body.appendChild(script);
+}
+
+/* ===== Search ===== */
+function doSearch() {
+    const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
+    const resultsEl = document.getElementById('searchResults');
+    if (!keyword) { resultsEl.classList.remove('active'); return; }
+
+    const matched = cachedStocks.filter(s =>
+        s.stock_name.toLowerCase().includes(keyword) ||
+        s.stock_code.includes(keyword) ||
+        (s.notes && s.notes.toLowerCase().includes(keyword))
+    );
+
+    if (matched.length) {
+        resultsEl.innerHTML = matched.map(s =>
+            '<div class="search-result-item" onclick="scrollToCard(\'' + escapeHtml(s.stock_code) + '\')">' +
+                '<span style="font-weight:500;">' + escapeHtml(s.stock_name) + '</span> ' +
+                '<span style="color:#aaa;">' + escapeHtml(s.stock_code) + '</span>' +
+            '</div>'
+        ).join('');
+    } else {
+        resultsEl.innerHTML = '<div class="search-result-item" style="color:#aaa;">未找到</div>';
+    }
+    resultsEl.classList.add('active');
+}
+
+function scrollToCard(code) {
+    document.getElementById('searchResults').classList.remove('active');
+    document.getElementById('searchInput').value = '';
+    const cards = document.querySelectorAll('.stock-card');
+    for (const card of cards) {
+        if (card.textContent.includes(code)) {
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            card.style.background = '#fef9e7';
+            setTimeout(() => card.style.background = '', 2000);
+            break;
+        }
+    }
+}
+
+/* ===== Tab Switch ===== */
+function switchTab(tab) {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    if (tab === 'home') document.querySelector('.nav-item:first-child').classList.add('active');
+    else if (tab === 'analysis') document.querySelector('.nav-item:nth-child(2)').classList.add('active');
+    else document.querySelector('.nav-item:last-child').classList.add('active');
+
+    if (tab === 'home') {
+        document.getElementById('stockList').style.display = '';
+        document.getElementById('sortBar') && (document.getElementById('sortBar').style.display = '');
+    } else if (tab === 'analysis') {
+        let html = '<div style="padding:40px 20px;text-align:center;color:#888;font-size:14px;">AI分析功能开发中...<br><br>当前持仓概览</div>';
+        if (cachedStocks.length) {
+            html = '<div style="padding:14px;"><div style="font-size:15px;font-weight:500;margin-bottom:12px;">持仓概览</div>';
+            for (const s of cachedStocks) {
+                const price = stockPrices[s.stock_code]?.price || 0;
+                const cost = s.cost_price || 0;
+                const qty = s.quantity || 100;
+                const profit = cost > 0 && price > 0 ? ((price - cost) * qty).toFixed(2) : 0;
+                const profitRate = cost > 0 && price > 0 ? ((price - cost)/cost*100).toFixed(2) : 0;
+                const pc = profit >= 0 ? '#e74c3c' : '#27ae60';
+                const jVal = kdj60Data[s.stock_code]?.j;
+                html += '<div style="background:var(--card-bg);border:0.5px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;">' +
+                    '<div style="display:flex;justify-content:space-between;">' +
+                        '<span style="font-weight:500;">' + escapeHtml(s.stock_name) + '</span>' +
+                        '<span style="color:' + pc + ';">' + (profit >= 0 ? '+' : '') + profit + '</span>' +
+                    '</div>' +
+                    '<div style="font-size:12px;color:#888;margin-top:4px;">' +
+                        '成本 ' + (cost > 0 ? cost.toFixed(2) : '--') + ' | ' +
+                        '当前 ' + (price > 0 ? price.toFixed(2) : '--') + ' | ' +
+                        '盈亏率 ' + (profitRate != 0 ? profitRate + '%' : '--') +
+                        (jVal !== undefined ? ' | J:' + jVal.toFixed(1) : '') +
+                    '</div>' +
+                '</div>';
+            }
+            html += '</div>';
+        }
+        document.getElementById('stockList').innerHTML = html;
+        document.getElementById('stockList').style.display = '';
+    } else {
+        document.getElementById('stockList').innerHTML =
+            '<div style="padding:20px 14px;">' +
+                '<div style="font-size:15px;font-weight:500;margin-bottom:12px;">设置</div>' +
+                '<div style="background:var(--card-bg);border:0.5px solid var(--border);border-radius:10px;padding:14px;">' +
+                    '<div style="font-size:13px;color:#888;">Supabase</div>' +
+                    '<div style="font-size:12px;margin-top:4px;word-break:break-all;">' + (supabaseUrl || '未连接') + '</div>' +
+                    '<div style="margin-top:12px;font-size:13px;color:#888;">当前持仓数</div>' +
+                    '<div style="font-size:18px;font-weight:500;">' + cachedStocks.length + ' 只</div>' +
+                '</div>' +
+                '<button class="btn-danger" style="margin-top:20px;" onclick="logout()">断开连接</button>' +
+            '</div>';
+    }
+}
+
+function logout() {
+    if (!confirm('确定断开Supabase连接？')) return;
+    localStorage.removeItem('supabase_url');
+    localStorage.removeItem('supabase_key');
+    window.location.href = 'login.html';
+}
+
+/* ===== Load Stocks ===== */
+async function loadStocks() {
+    try {
+        const resp = await supabaseFetch('stocks?select=*&order=created_at.desc');
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        cachedStocks = await resp.json() || [];
+
+        if (!cachedStocks.length) {
+            document.getElementById('stockList').innerHTML = '<div class="empty">暂无持仓，点击右上角添加</div>';
+            return;
+        }
+
+        const codes = cachedStocks.map(s => s.stock_code);
+        await fetchStockPrices(codes);
+        renderCards();
+        await fetchAllKDJ60(codes);
+        renderCards();
+    } catch(e) {
+        document.getElementById('stockList').innerHTML = '<div class="loading">加载失败: ' + e.message + '</div>';
+        console.error(e);
+    }
+}
+
+/* ===== Init ===== */
+window.onload = async function() {
+    supabaseUrl = localStorage.getItem('supabase_url');
+    supabaseKey = localStorage.getItem('supabase_key');
+    if (!supabaseUrl || !supabaseKey) {
+        window.location.href = 'login.html';
+        return;
+    }
+
+    loadStocks();
+    fetchIndexData();
+
+    priceTimer = setInterval(async () => {
+        if (cachedStocks.length) {
+            await fetchStockPrices(cachedStocks.map(s => s.stock_code));
+            renderCards();
+        }
+        fetchIndexData();
+    }, 5000);
+
+    kdjTimer = setInterval(async () => {
+        if (cachedStocks.length) {
+            await fetchAllKDJ60(cachedStocks.map(s => s.stock_code));
+            renderCards();
+        }
+    }, 300000);
+
+    const nameInput = document.getElementById('stockName');
+    nameInput.addEventListener('blur', () => {
+        const v = nameInput.value.trim();
+        if (v) stockNameLookup(v);
+    });
+    nameInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            const v = nameInput.value.trim();
+            if (v) stockNameLookup(v);
+        }
+    });
+
+    const codeInput = document.getElementById('stockCode');
+    codeInput.addEventListener('blur', () => {
+        const v = codeInput.value.trim();
+        if (v && /^\d{6}$/.test(v)) stockCodeLookup(v);
+    });
+
+    const searchInput = document.getElementById('searchInput');
+    searchInput.addEventListener('input', doSearch);
+    searchInput.addEventListener('focus', doSearch);
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('#headerArea')) {
+            document.getElementById('searchResults').classList.remove('active');
+        }
+    });
+
+    document.getElementById('formModal').addEventListener('click', function(e) {
+        if (e.target === this) closeForm();
+    });
+    document.getElementById('detailModal').addEventListener('click', function(e) {
+        if (e.target === this) closeDetail();
+    });
+};
+</script>
+</body>
+</html>

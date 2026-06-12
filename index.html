@@ -689,6 +689,18 @@
             background: #2980b9;
         }
 
+        /* 扣子分析按钮样式 */
+        .btn-coze {
+            background: #8b5cf6;
+            color: white;
+            padding: 6px 12px;
+            font-size: 13px;
+        }
+
+        .btn-coze:hover {
+            background: #7c3aed;
+        }
+
         /* 弹窗样式 */
         .modal-overlay {
             display: none;
@@ -2507,6 +2519,7 @@
                                 <td>${formatDate(stock.created_at)}</td>
                                 <td>
                                     <button class="btn btn-edit" onclick="editStock(${stock.id}, '${escapeHtml(stock.stock_name)}', '${escapeHtml(stock.stock_code)}', '${escapeHtml(stock.market)}', ${stock.cost_price || 0}, ${stock.quantity || 100}, '${escapeHtml(stock.notes || '')}')">编辑</button>
+                                    <button class="btn btn-coze" onclick="openCozeAnalysis('${escapeHtml(stock.stock_code)}', '${escapeHtml(stock.stock_name)}', ${stock.cost_price || 0})">扣子分析</button>
                                     <button class="btn btn-more" onclick="showMoreModal(${stock.id}, '${escapeHtml(stock.stock_name)}')">More</button>
                                     <button class="btn btn-danger" onclick="deleteStock(${stock.id})">删除</button>
                                 </td>
@@ -2643,6 +2656,7 @@
                         <td>${formatDate(stock.created_at)}</td>
                         <td>
                             <button class="btn btn-edit" onclick="editStock(${stock.id}, '${escapeHtml(stock.stock_name)}', '${escapeHtml(stock.stock_code)}', '${escapeHtml(stock.market)}', ${stock.cost_price || 0}, ${stock.quantity || 100}, '${escapeHtml(stock.notes || '')}')">编辑</button>
+                            <button class="btn btn-coze" onclick="openCozeAnalysis('${escapeHtml(stock.stock_code)}', '${escapeHtml(stock.stock_name)}', ${stock.cost_price || 0})">扣子分析</button>
                             <button class="btn btn-more" onclick="showMoreModal(${stock.id}, '${escapeHtml(stock.stock_name)}')">More</button>
                             <button class="btn btn-danger" onclick="deleteStock(${stock.id})">删除</button>
                         </td>
@@ -3088,6 +3102,26 @@
         function closeMoreModal() {
             document.getElementById('moreModal').classList.remove('active');
             window.currentMoreStockId = null;
+        }
+
+        // 扣子分析 - 复制关键词并跳转到Coze页面
+        function openCozeAnalysis(code, name, costPrice) {
+            const priceData = window.stockPrices?.[code] || {};
+            const currentPrice = priceData.currentPrice || 0;
+            const changeRate = priceData.changeRate;
+            const kdj60Data = window.kdj60Data?.[code];
+            const kdj60J = kdj60Data ? kdj60Data.j.toFixed(2) : '--';
+
+            const text = `${name}\n${code}\n当日涨跌幅：${changeRate != null ? (changeRate >= 0 ? '+' : '') + changeRate.toFixed(2) + '%' : '--'}\n当前价：${currentPrice > 0 ? '¥' + currentPrice.toFixed(2) : '--'}\n成本价：${costPrice ? '¥' + costPrice : '--'}\nkdj60价：${kdj60J}`;
+
+            navigator.clipboard.writeText(text).then(() => {
+                showAlert('已复制到剪贴板，即将跳转扣子分析页面', 'success');
+            }).catch(err => {
+                console.error('复制失败:', err);
+                showAlert('复制失败，请手动复制', 'error');
+            });
+
+            window.open('https://www.coze.cn/space/7650497467796291590/bot/7650505045418475555', '_blank');
         }
 
         // 保存More内容
